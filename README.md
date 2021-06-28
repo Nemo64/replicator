@@ -42,9 +42,10 @@ application only needs to know the filename scheme and can download aggregations
 
 ## Design goals/considerations
 
-- Use web formats for storage, like json, in a way that is directly deliverable without an application layer.
 - Must work with any filesystem that supports events for easy hackable local development and for small deployments.
 - Must plug into existing object storage solutions like **AWS S3 with serverless compute**.
+- Must not provide an own api to access files, so existing reliable solutions can be used.
+- Use web formats for storage, like json, in a way that is directly deliverable without an application layer.
 - Updates must scan as few source files as possible, so updates are quick. (less than a second at best)
 - Recovery must be possible if watchers or updates are interrupted.
 - Don't invent new normalization rules. Work directly with target data structures to minimize abstraction and mapping.
@@ -52,20 +53,22 @@ application only needs to know the filename scheme and can download aggregations
 
 ## Challenges
 
-- Every write requires a rewrite of an entire file (unless some trickery is used).
-  Since we are talking about sequential reads and writes, I don't think that is an issue in most cases.
-  Depending on how your split your base files, those could grow indefinitely though.
-- Relying entirely on filesystem events could lead to issues on some systems.
-  Mutagen has a [great documentation](https://mutagen.io/documentation/synchronization/watching)
+- Every write requires a rewrite of an entire file (unless some trickery is used). Since we are talking about sequential
+  reads and writes, I don't think that is an issue in most cases. Depending on how your split your base files, those
+  could grow indefinitely though.
+- Relying entirely on filesystem events could lead to issues on some systems. Mutagen has
+  a [great documentation](https://mutagen.io/documentation/synchronization/watching)
   on their challenges and how they solved it.
-- Figuring out which views require an update is easy as long as data is added.
-  If data is removed, we'll need access to the history of that file to figure out which views were affected.
-  I don't know yet if that can be gracefully solved or requires file duplication for later comparison.
+- Figuring out which views require an update is easy as long as data is added. If data is removed, we'll need access to
+  the history of that file to figure out which views were affected. I don't know yet if that can be gracefully solved or
+  requires file duplication for later comparison.
 - Only a single view is writable and contains the truth. You must only write in your base files.
 - There are solutions for atomic writes to files, but I don't know how reliable they are. Write operations are atomic up
   to a point: https://serverfault.com/a/947789
 - Rebuilding large amount of views requires some considerations since it might not be feasible to keep all variations in
   ram until all files are scanned.
+- Reorganization of the base files will probably result in a change of your public apis, which is undesirable. The
+  design should strive to minimize those breaking changes whenever possible.
 
 ## Inspirations
 
@@ -85,24 +88,12 @@ replicator-db, you want to store as much related data in a single file as possib
     "name": "Personal events",
     "owner": "user+1@example.com",
     "shared_with": [
-        {
-            "user": "user+2@example.com",
-            "privilege": "read-only"
-        }
+        {"user": "user+2@example.com", "privilege": "read-only"}
     ],
     "appointments": [
-        {
-            "name": "Car inspection",
-            "time": "2021-06-28T06:00:00+02:00"
-        },
-        {
-            "name": "Doctor",
-            "time": "2021-07-03T13:30:00+02:00"
-        },
-        {
-            "name": "Dinner",
-            "time": "2021-07-04T20:00:00+02:00"
-        }
+        {"time": "2021-06-28T06:00:00+02:00", "name": "Car inspection"},
+        {"time": "2021-07-03T13:30:00+02:00", "name": "Doctor"},
+        {"time": "2021-07-04T20:00:00+02:00", "name": "Dinner"}
     ]
 }
 ```
@@ -131,80 +122,57 @@ for example.
 // views/user+1@example.com/calendars.json
 [
     {
-        // these fields are needed for the efficient aggregation process
+        // this field is needed for the efficient aggregation process
         "_source": "calendar/6ff6255b-45b5-4895-8d59-50fa60663cfc.json",
-        "_lastmod": "2021-06-27T22:12:46.476+02:00",
         // all other fields are config defined
-        "calendar": {
-            "name": "Personal events",
-            "privilege": "owner"
-        }
+        "name": "Personal events",
+        "privilege": "owner"
     },
     {
         "_source": "calendar/2732158b-aaa3-4951-aa40-6e9cbac328d0.json",
-        "_lastmod": "2021-06-23T14:56:12.076+02:00",
-        "calendar": {
-            "name": "Work events",
-            "privilege": "owner"
-        }
+        "name": "Work events",
+        "privilege": "owner"
     },
     {
         "_source": "calendar/67763fd6-13df-4a9b-967b-88773380dea7.json",
-        "_lastmod": "2021-01-01T00:12:44.202+01:00",
-        "calendar": {
-            "name": "Holidays",
-            "privilege": "read-only"
-        }
+        "name": "Holidays",
+        "privilege": "read-only"
     }
 ]
 ```
 
 ```json5
-// views/user+1@example.com/2021-07.json
+// views/user+1@example.com/appointments/2021-07.json
 [
     {
         "_source": "calendar/6ff6255b-45b5-4895-8d59-50fa60663cfc.json",
-        "_lastmod": "2021-06-27T22:12:46.476+02:00",
-        "calendar": {
-            "name": "Work events",
-            "privilege": "owner"
-        },
-        "appointments": [
-            {
-                "name": "Doctor",
-                "time": "2021-07-03T13:30:00+02:00"
-            },
-            {
-                "name": "Dinner",
-                "time": "2021-07-04T20:00:00+02:00"
-            }
-        ]
+        "calendar": {"name": "Personal events", "privilege": "owner"},
+        "time": "2021-07-03T13:30:00+02:00",
+        "name": "Doctor"
+    },
+    {
+        "_source": "calendar/6ff6255b-45b5-4895-8d59-50fa60663cfc.json",
+        "calendar": {"name": "Personal events", "privilege": "owner"},
+        "time": "2021-07-04T20:00:00+02:00",
+        "name": "Dinner"
     },
     {
         "_source": "calendar/2732158b-aaa3-4951-aa40-6e9cbac328d0.json",
-        "_lastmod": "2021-06-23T14:56:12.076+02:00",
-        "calendar": {
-            "name": "Work events",
-            "privilege": "owner"
-        },
-        "appointments": [
-            {
-                "name": "Morning Meeting",
-                "time": "2021-07-05T10:00:00+02:00"
-            },
-            {
-                "name": "Morning Meeting",
-                "time": "2021-07-12T10:00:00+02:00"
-            },
-            {
-                "name": "Morning Meeting",
-                "time": "2021-07-19T10:00:00+02:00"
-            },
-            {
-                "name": "Morning Meeting",
-                "time": "2021-07-26T10:00:00+02:00"
-            }
-        ]
+        "calendar": {"name": "Work events", "privilege": "owner"},
+        "time": "2021-07-05T10:00:00+02:00",
+        "name": "Morning Meeting"
+    },
+    {
+        "_source": "calendar/2732158b-aaa3-4951-aa40-6e9cbac328d0.json",
+        "calendar": {"name": "Work events", "privilege": "owner"},
+        "time": "2021-07-12T10:00:00+02:00",
+        "name": "Morning Meeting"
+    },
+    {
+        "_source": "calendar/2732158b-aaa3-4951-aa40-6e9cbac328d0.json",
+        "calendar": {"name": "Work events", "privilege": "owner"},
+        "time": "2021-07-26T10:00:00+02:00",
+        "name": "Morning Meeting"
     }
 ]
 ```
@@ -215,51 +183,78 @@ for example.
 // replicator-db.json
 {
     "version": "0.0.1",
+    "mounts": {
+        "www": {
+            "driver": "fs",
+            // should support events, but i could also imagine s3, ftp or even imap here
+            "driver_options": {"path": "/var/www"},
+            "parser": "json"
+            // format, other possibilities could be csv or excel and even more abstract once like pdf or email
+        },
+    },
     "views": [
         {
-            "source": "calendar/*.json",
+            "source": {"mount": "www", "pattern": "calendar/*.json"},
+            // all lists in matrix will be iterated and processed individually
+            // this allows to create multiple view files from a single source file
             "matrix": {
-                // all lists in matrix will be iterated and processed individually
-                // this allows to create multiple view files from a single source file
-                "user": "{source.owner,source.shared_with[*].user}"
+                "user": "{source.owner, source.shared_with|map(.user)}",
             },
             // the target file is always a json array at root level
             // multiple source files and view definitions can write into the same target
-            "target": "views/{matrix.user}/calendars.json",
+            "target": {"mount": "www", "pattern": "views/{matrix.user}/calendars.json"},
             // the format is what is actually in a view-item
             "format": {
-                "calendar": {
-                    "name": "{source.name}",
-                    "privilege": "{source.shared_with[.user == matrix.user]|first.privilege ?? 'owner'}"
-                }
+                "name": "{source.name}",
+                "privilege": "{source.shared_with|filter(.user == matrix.user)|map(.privilege)|first ?? 'owner'}"
             }
         },
         {
-            "source": "calendar/*.json",
+            "source": {"mount": "calendar/*.json", "pattern": "calendar/*.json"},
+            // this matrix creates one entry per user per appointment
             "matrix": {
-                "user": "{source.owner,source.shared_with[*].user}",
-                "date": "{source.appointments[*].time|strftime('%Y-%m')}"
+                "user": "{source.owner, source.shared_with|map(.user)}",
+                "appointment": "{source.appointments}"
             },
-            "target": "views/{matrix.user}/{matrix.time}.json",
-            "condition": "{source.appointments[.time|strftime('%Y-%m') == matrix.date]}",
+            // multiple entries can have the same file target
+            // this means 1 calender can add multiple appointments to the target file 
+            "target": {"mount": "www", "pattern": "views/{matrix.user}/{matrix.appointment.time|strftime('%Y-%m')}.json"},
             "format": {
                 "calendar": {
                     "name": "{source.name}",
-                    "privilege": "{source.shared_with[.user == matrix.user]|first.privilege ?? 'owner'}"
+                    "privilege": "{source.shared_with|filter(.user == matrix.user)|map(.privilege)|first|default('owner')}"
                 },
-                "appointments": {
-                    "_for": {
-                        "each": "{source.appointments[.time|strftime('%Y-%m') == matrix.time]}",
-                        "as": "appointment"
-                    },
-                    "name": "{appointment.name}",
-                    "time": "{appointment.time}"
-                }
+                "name": "{matrix.appointment.name}",
+                "time": "{matrix.appointment.time}"
             }
         }
     ]
 }
 ```
+
+## Available patterns
+
+You can reference values using the `{...}` placeholder syntax within strings. Property paths can be chained using `.`
+like `first.second.third`.
+
+Available root properties are:
+
+- `{source}` which directly contains the parsed source file
+- `{matrix}` contains all properties from the matrix expansion for the current entry
+
+Filters can be accessed and chained using `|filter_name`. Available filters are:
+
+- `|filter(.property == source.property)` which allows you to run `>=`, `==`, `<=` or `!=` expression with the
+  capability to access every item using a property path beginning with `.`.
+- `|map(.property)` allows to map an array using an expression. For example accessing sub properties in an array of
+  objects. It is also possible to put filters within the map filter.
+- `|strftime('%Y-%m-%d')` allows the usage of modifying a date.
+- `|default('value')` replaces `null` with the specified value.
+- `|length` tells the length of a list.
+- `|first` returns the first item in a list or `null` if the list is empty.
+- `|sum` sums all numbers in a list. If the list is empty, `null` will be returned.
+- `|min` min value of a list. Can be used on lists of numbers or strings. If the list is empty, `null` will be returned.
+- `|max` max value of a list. Can be used on lists of numbers or strings. If the list is empty, `null` will be returned.
 
 ## Possible access patterns
 
@@ -269,12 +264,12 @@ for example.
  */
 export function CalenderList() {
     const {username} = useLogin();
-    const {data: view} = useSwr(`views/${username}/calendars.json`);
+    const {data: calendars} = useSwr(`/views/${username}/calendars.json`);
 
     return <ul>
-        {view.map(viewItem => (
-            <li key={viewItem._source}>{item.calendar.name}</li>
-        ))}
+        {calendars?.map(calendar =>
+            <li key={calendar.name}>{calendar.name}</li>
+        )}
     </ul>;
 }
 ```
@@ -285,26 +280,25 @@ export function CalenderList() {
  */
 export function NextAppointments() {
     const startTime = new Date();
-    startTime.setHours(0, 0, 0); // beginning of the day
+    startTime.setHours(0, 0, 0, 0); // beginning of the day in users timezone
     const nextMonth = new Date(startTime.getTime());
     nextMonth.setUTCMonth(nextMonth.getUTCMonth() + 1);
-    
+
     const {username} = useLogin();
-    const {data: thisMonthView} = useSwr(username && `views/${username}/${startTime.getUTCFullYear()}${startTime.getUTCMonth() + 1}.json`);
-    const {data: nextMonthView} = useSwr(username && `views/${username}/${nextMonth.getUTCFullYear()}${nextMonth.getUTCMonth() + 1}.json`);
-    
-    const appointments = [thisMonthView, nextMonthView]
-        .flatMap(view => view?.appointments ?? []) // extract all the appointment lists
+    const {data: thisMonthView} = useSwr(username && `/views/${username}/appointments/${startTime.getUTCFullYear()}-${startTime.getUTCMonth() + 1}.json`);
+    const {data: nextMonthView} = useSwr(username && `/views/${username}/appointments/${nextMonth.getUTCFullYear()}-${nextMonth.getUTCMonth() + 1}.json`);
+
+    const appointments = [...thisMonthView ?? [], ...nextMonthView ?? []]
         .filter(appointment => Date.parse(appointment.time) >= startTime.getTime()) // only newer than startTime
-        .sort((appointment1, appointment2) => Date.parse(appointment1.time) - Date.parse(appointment2.time))
+        .sort((a, b) => Date.parse(a.time) - Date.parse(b.time)) // sort by time
         .slice(0, 500) // never show more than 500 entries
-    
+
     return <ul>
-        {appointments.map(appointment => (
-            <li key={`${appointment.time}${appointment.name}`}>
+        {appointments?.map(appointment =>
+            <li key={`${JSON.stringify(appointment)}`}>
                 {Date(appointment.time)} {appointment.name}
             </li>
-        ))}
+        )}
     </ul>
 }
 ```
