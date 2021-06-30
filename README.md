@@ -1,48 +1,63 @@
-# Concept/Prototype of ReplicatorDB
+# ReplicatorDB - The noDB storage solution
 
-This is an attempt to solve storage solutions for web applications in a cost-effective, asynchronous and performant way.
+This is a concept/prototype. It is not meant for production use (unless you really know what you are getting into).
+
+The basic idea is to replace your traditional SQL or noSQL database with plain-old files.
+This project then aggregates those files (using filesystem events) into different view copies,
+so you can build efficient eventually-consistent aggregation/list views for your users.
+
+The aim here is to be an extension to the native filesystem or block storage (s3),
+and not a completely new way how to interact with data, like most databases.
+That way, this project can profit off of decades of persistence experience.
+
+## Why?
 
 What most **databases** (in general) do is:
 
 - optimize for small records
 - allow you to access your records in multiple ways (multiple views)
 - allow you to efficiently read multiple records at the same time
+- have/require processes that manage access to the underlying storage/cache with special hosting requirements
 
 Other features like search, aggregation, and transactions are specific to database types like SQL.
 
-This is also in strong contrast to the normal os-**filesystem** and object storages like **s3** which are limited by
+This is in strong contrast to the normal os-**filesystem** and object storages like **s3** which:
 
 - optimize for larger records/files
-- only has a single way/view to access a record/file
-- accessing multiple records/files comes with significant overhead
+- only have a **single way to access a record**/file
+- have significant **overhead when accessing multiple records**/files
+- require nothing more than a modern kernel and are practically available everywhere
 
-So what you usually do is store application data in a normalized form in a database. Then you build views for your
-application that tap into your databases capability to list many records at once. You do this because you want your
-clients to get everything they want with as few round-trips as possible, so giving them a large stream of data with just
-the properties they need is optimal.
+So what you usually do is store application data in a normalized form in a database.
+Then you build views for your application that tap into your databases capability to list many records at once.
+You do this because you want your clients to get everything they want with as few round-trips as possible,
+so giving them a large stream of data with just the properties they need is optimal.
 
 However, that means that most views will require to run some code on your infrastructure that accesses your database,
 which consumes some cpu resources and may present scaling issues when you actually have traffic.
 
 ## what is this project about?
 
-**This project is about solving the "multiple-views" issue of files.**
+**This project is about solving the "multiple records/files" issue of filesystems using only conventions.**
 
 The idea is to eventually consistently aggregate the contents of files, based on config files, within other known
-filename schemes based on the content of those files (eg. usernames, dates or alphabetical). That way, your client
-application only needs to know the filename scheme and can download aggregations, usually without an application layer.
+filename schemes (views) based on the content of those files (eg. usernames, groups, dates, alphabetical etc.).
+That way, your client application only needs to know the views filename scheme
+and can download aggregations, usually without an application layer (besides a web server like nginx).
 
-- The browser can efficiently cache and revalidate files
-- The linux page cache can improve performance without configuration
+That does mean we are duplicating a lot of data, but the list of advantages is long:
+
+- Every view is just 1 or more file that is already saved in a deliverable format, so view performance is excellent
+- Browsers and CDN's can efficiently download, cache and revalidate files, since the mtime is actually correct
+- The linux page cache can improve delivery performance without any configuration
 - Your hoster can probably deliver stored files very efficiently
-- CDN's can be a good cache if your files have correctly set modify times
 - Replicating and safely storing files is a known and solved issue
 - Most programming environments can handle files well
-- Shared and exclusive locking is also usually supported
+- Shared and exclusive locking is also usually supported (~[usually](https://github.com/denoland/deno/issues/11192))
 
 ## Design goals/considerations
 
-- Must work with any filesystem that supports events for easy hackable local development and for small deployments.
+- Must work with any filesystem that supports events for easy hackable local development and small/medium deployments.
 - Must plug into existing object storage solutions like **AWS S3 with serverless compute**.
 - Must not provide an own api to access files, so existing reliable solutions can be used.
 - Use web formats for storage, like json, in a way that is directly deliverable without an application layer.
@@ -83,7 +98,7 @@ In a database, you'd usually normalize the data down to basic calendar informati
 replicator-db, you want to store as much related data in a single file as possible.
 
 ```json5
-// calendar/6ff6255b-45b5-4895-8d59-50fa60663cfc.json
+// source/6ff6255b-45b5-4895-8d59-50fa60663cfc.json
 {
     "name": "Personal events",
     "owner": "user+1@example.com",
@@ -108,7 +123,7 @@ But you instantly have different access patterns that you can't easily solve wit
 
 The replicator-db will duplicate the data (on fs-events) into different structures.
 
-- The main calendar files live in `calendar/6ff6255b-45b5-4895-8d59-50fa60663cfc.json`
+- The main calendar files live in `source/6ff6255b-45b5-4895-8d59-50fa60663cfc.json`
 - Replicator-db could store the uuid's, access rights and names of calendars in `lists/user+1@example.com.json`
 - Replicator-db could store appointments monthly in `appointments/user+1@example.com/2021-07.json`
 
@@ -123,18 +138,18 @@ for example.
 [
     {
         // this field is needed for the efficient aggregation process
-        "_source": "calendar/6ff6255b-45b5-4895-8d59-50fa60663cfc.json",
+        "_source": "source/6ff6255b-45b5-4895-8d59-50fa60663cfc.json",
         // all other fields are config defined
         "name": "Personal events",
         "privilege": "owner"
     },
     {
-        "_source": "calendar/2732158b-aaa3-4951-aa40-6e9cbac328d0.json",
+        "_source": "source/2732158b-aaa3-4951-aa40-6e9cbac328d0.json",
         "name": "Work events",
         "privilege": "owner"
     },
     {
-        "_source": "calendar/67763fd6-13df-4a9b-967b-88773380dea7.json",
+        "_source": "source/67763fd6-13df-4a9b-967b-88773380dea7.json",
         "name": "Holidays",
         "privilege": "read-only"
     }
@@ -145,31 +160,31 @@ for example.
 // views/user+1@example.com/appointments/2021-07.json
 [
     {
-        "_source": "calendar/6ff6255b-45b5-4895-8d59-50fa60663cfc.json",
+        "_source": "source/6ff6255b-45b5-4895-8d59-50fa60663cfc.json",
         "calendar": {"name": "Personal events", "privilege": "owner"},
         "time": "2021-07-03T13:30:00+02:00",
         "name": "Doctor"
     },
     {
-        "_source": "calendar/6ff6255b-45b5-4895-8d59-50fa60663cfc.json",
+        "_source": "source/6ff6255b-45b5-4895-8d59-50fa60663cfc.json",
         "calendar": {"name": "Personal events", "privilege": "owner"},
         "time": "2021-07-04T20:00:00+02:00",
         "name": "Dinner"
     },
     {
-        "_source": "calendar/2732158b-aaa3-4951-aa40-6e9cbac328d0.json",
+        "_source": "source/2732158b-aaa3-4951-aa40-6e9cbac328d0.json",
         "calendar": {"name": "Work events", "privilege": "owner"},
         "time": "2021-07-05T10:00:00+02:00",
         "name": "Morning Meeting"
     },
     {
-        "_source": "calendar/2732158b-aaa3-4951-aa40-6e9cbac328d0.json",
+        "_source": "source/2732158b-aaa3-4951-aa40-6e9cbac328d0.json",
         "calendar": {"name": "Work events", "privilege": "owner"},
         "time": "2021-07-12T10:00:00+02:00",
         "name": "Morning Meeting"
     },
     {
-        "_source": "calendar/2732158b-aaa3-4951-aa40-6e9cbac328d0.json",
+        "_source": "source/2732158b-aaa3-4951-aa40-6e9cbac328d0.json",
         "calendar": {"name": "Work events", "privilege": "owner"},
         "time": "2021-07-26T10:00:00+02:00",
         "name": "Morning Meeting"
@@ -189,16 +204,15 @@ for example.
             // should support events, but i could also imagine s3, ftp or even imap here
             "driver_options": {"path": "/var/www"},
             "parser": "json"
-            // format, other possibilities could be csv or excel and even more abstract once like pdf or email
-        },
+        }
     },
     "views": [
         {
-            "source": {"mount": "www", "pattern": "calendar/*.json"},
+            "source": {"mount": "www", "pattern": "source/*.json"},
             // all lists in matrix will be iterated and processed individually
             // this allows to create multiple view files from a single source file
             "matrix": {
-                "user": "{source.owner, source.shared_with|map(.user)}",
+                "user": "{source.owner, source.shared_with|map(.user)}"
             },
             // the target file is always a json array at root level
             // multiple source files and view definitions can write into the same target
@@ -206,11 +220,11 @@ for example.
             // the format is what is actually in a view-item
             "format": {
                 "name": "{source.name}",
-                "privilege": "{source.shared_with|filter(.user == matrix.user)|map(.privilege)|first ?? 'owner'}"
+                "privilege": "{source.shared_with|filter(.user == matrix.user)|map(.privilege)|first|default('owner')}"
             }
         },
         {
-            "source": {"mount": "calendar/*.json", "pattern": "calendar/*.json"},
+            "source": {"mount": "www", "pattern": "source/*.json"},
             // this matrix creates one entry per user per appointment
             "matrix": {
                 "user": "{source.owner, source.shared_with|map(.user)}",
@@ -244,14 +258,16 @@ Available root properties are:
 
 Filters can be accessed and chained using `|filter_name`. Available filters are:
 
-- `|filter(.property == source.property)` which allows you to run `>=`, `==`, `<=` or `!=` expression with the
-  capability to access every item using a property path beginning with `.`.
-- `|map(.property)` allows to map an array using an expression. For example accessing sub properties in an array of
-  objects. It is also possible to put filters within the map filter.
-- `|strftime('%Y-%m-%d')` allows the usage of modifying a date.
+- `|filter(.property == source.property)` which allows you to run `>=`, `==`, `<=` or `!=` expression
+  with the capability to access every item using a property path beginning with `.`.
+- `|map(.property)` allows to map an array using an expression.
+  For example accessing sub properties in an array of objects.
+  It is also possible to put filters within the map filter.
+- `|strftime('%Y-%m-%d')` allows to format a date using the c strftime syntax.
 - `|default('value')` replaces `null` with the specified value.
 - `|length` tells the length of a list.
 - `|first` returns the first item in a list or `null` if the list is empty.
+- `|last` returns the last item in a list or `null` if the list is empty.
 - `|sum` sums all numbers in a list. If the list is empty, `null` will be returned.
 - `|min` min value of a list. Can be used on lists of numbers or strings. If the list is empty, `null` will be returned.
 - `|max` max value of a list. Can be used on lists of numbers or strings. If the list is empty, `null` will be returned.
@@ -281,23 +297,31 @@ export function CalenderList() {
 export function NextAppointments() {
     const startTime = new Date();
     startTime.setHours(0, 0, 0, 0); // beginning of the day in users timezone
-    const nextMonth = new Date(startTime.getTime());
-    nextMonth.setUTCMonth(nextMonth.getUTCMonth() + 1);
 
     const {username} = useLogin();
-    const {data: thisMonthView} = useSwr(username && `/views/${username}/appointments/${startTime.getUTCFullYear()}-${startTime.getUTCMonth() + 1}.json`);
-    const {data: nextMonthView} = useSwr(username && `/views/${username}/appointments/${nextMonth.getUTCFullYear()}-${nextMonth.getUTCMonth() + 1}.json`);
+    const pager = pageIndex => {
+        const date = new Date(startTime.getTime());
+        date.setUTCMonth(date.getUTCMonth() + pageIndex);
+        return username && `/views/${username}/${date.getUTCFullYear()}-${date.getUTCMonth() + 1}.json`
+    }
 
-    const appointments = [...thisMonthView ?? [], ...nextMonthView ?? []]
+    const {data: views, size, setSize, isValidating} = useSWRInfinite(pager, null, {initialSize: 2});
+    const appointments = views
+        .flatMap(view => Array.isArray(view) ? view : []) // spread views to flat array
         .filter(appointment => Date.parse(appointment.time) >= startTime.getTime()) // only newer than startTime
-        .sort((a, b) => Date.parse(a.time) - Date.parse(b.time)) // sort by time
-        .slice(0, 500) // never show more than 500 entries
+        .sort((a, b) => Date.parse(a.time) - Date.parse(b.time)); // sort by time
 
     return <ul>
         {appointments?.map(appointment =>
             <li key={`${JSON.stringify(appointment)}`}>
                 {Date(appointment.time)} {appointment.name}
             </li>
+        )}
+        {isValidating && (
+            <li>loading...</li>
+        )}
+        {!isValidating && size < 12 && (
+            <li><button type="button" onClick={() => setSize(size + 1)}>load more</button></li>
         )}
     </ul>
 }
