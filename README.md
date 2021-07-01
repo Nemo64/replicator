@@ -38,10 +38,11 @@ which consumes some cpu resources and may present scaling issues when you actual
 
 ## what is this project about?
 
-**This project is about solving the "multiple records/files" issue of filesystems using only conventions.**
+**This project is about solving the "multiple records/files" issue of filesystems.**
 
-The idea is to eventually consistently aggregate the contents of files, based on config files, within other known
-filename schemes (views) based on the content of those files (eg. usernames, groups, dates, alphabetical etc.).
+The idea is to eventually consistently aggregate the contents of large source files, based on config files.
+Those aggregations will then be stored under different filename schemes based on the content of the aggregated file.
+For example usernames, groups, dates, alphabetical ~ whatever you would usually use a secondary index in your database for.
 That way, your client application only needs to know the views filename scheme
 and can download aggregations, usually without an application layer (besides a web server like nginx).
 
