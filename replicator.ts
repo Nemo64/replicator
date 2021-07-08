@@ -39,7 +39,7 @@ for (const [sourceName, source] of Object.entries(config.sources)) {
         }
 
         for (const view of views) {
-            const entriesByViewUri = new Map<string, PatternData[]>();
+            const entriesByViewUri = new Map<string, PatternObject[]>();
 
             const matrix = view.matrix({source: change.nextData}) as Record<string, PatternData[]>;
             if (matrix === null || typeof matrix !== 'object' || !Object.values(matrix).every(entry => Array.isArray(entry))) {
@@ -49,7 +49,7 @@ for (const [sourceName, source] of Object.entries(config.sources)) {
             for (const mutation of permuteMatrix(matrix)) {
                 const context = {source: change.nextData, matrix: mutation};
                 const viewUri = view.target.generateUri(context);
-                const entry = view.format(context);
+                const entry = view.format(context) as PatternObject;
 
                 const entries = entriesByViewUri.get(viewUri);
                 if (entries) {

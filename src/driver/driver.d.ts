@@ -1,7 +1,4 @@
-/**
- * The source handler has to perform an update based on a source change.
- */
-import {PatternData, PatternObject} from "../pattern.ts";
+import {PatternObject} from "../pattern.ts";
 
 export interface SourceChange {
     readonly sourceUri: string;
@@ -38,5 +35,5 @@ export interface Driver {
      * Updates a view file.
      * View files must always be able to take multiple entries.
      */
-    updateEntries(sourceUri: string, viewUri: string, entries: PatternData[]): Promise<ViewUpdate>
+    updateEntries(sourceUri: string, viewUri: string, entries: PatternObject[]): Promise<ViewUpdate>
 }
