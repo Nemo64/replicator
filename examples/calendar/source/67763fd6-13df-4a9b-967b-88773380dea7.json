@@ -1,0 +1,8 @@
+{
+    "name": "Holidays",
+    "owner": "user+2@example.com",
+    "shared_with": [
+        {"user": "user+1@example.com", "privilege": "read-only"}
+    ],
+    "appointments": []
+}

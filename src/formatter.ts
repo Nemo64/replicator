@@ -1,0 +1,51 @@
+import {parse, PatternData, PatternFunction, PatternObject} from "./pattern.ts";
+
+export type ParsedPatternData =
+    string
+    | number
+    | boolean
+    | null
+    | ParsedPatternData[]
+    | ParsedPatternObject
+    | PatternFunction;
+
+// deno-lint-ignore no-empty-interface https://stackoverflow.com/a/45999529/1973256
+export interface ParsedPatternObject extends Record<string | number, ParsedPatternData> {
+}
+
+export function parseStructure(structure: PatternObject): (data: PatternObject) => PatternData {
+    const parsedStructure = _parseStructure(structure);
+    return data => _executeStructure(parsedStructure, data);
+}
+
+function _parseStructure(structure: PatternData): ParsedPatternData {
+    if (typeof structure === 'string') {
+        return parse(structure);
+    }
+
+    if (Array.isArray(structure)) {
+        return structure.map(value => _parseStructure(value));
+    }
+
+    if (structure !== null && typeof structure === 'object') {
+        return Object.fromEntries(Object.entries(structure).map(([key, value]) => [key, _parseStructure(value)]));
+    }
+
+    return structure;
+}
+
+function _executeStructure(structure: ParsedPatternData, data: PatternObject): PatternData {
+    if (typeof structure === 'function') {
+        return structure(data);
+    }
+
+    if (Array.isArray(structure)) {
+        return structure.map(value => _executeStructure(value, data));
+    }
+
+    if (structure !== null && typeof structure === 'object') {
+        return Object.fromEntries(Object.entries(structure).map(([key, value]) => [key, _executeStructure(value, data)]));
+    }
+
+    return structure;
+}

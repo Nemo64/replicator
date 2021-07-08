@@ -1,9 +1,12 @@
 # ReplicatorDB - The noDB storage solution
 
-This is a concept/prototype. It is not meant for production use (unless you really know what you are getting into).
+This is a concept/prototype.
 
 The basic idea is to replace your traditional SQL or noSQL database with plain-old files.
-This project then aggregates those files (using filesystem events) into different view copies,
+The is achieved by continuously keeping your queries answered
+instead of preparing your data for on-the-fly answering. 
+
+This project then aggregates files (using filesystem events) into different view copies,
 so you can build efficient eventually-consistent aggregation/list views for your users.
 
 The aim here is to be an extension to the native filesystem or block storage (s3),
@@ -199,45 +202,49 @@ for example.
 // replicator-db.json
 {
     "version": "0.0.1",
-    "mounts": {
-        "www": {
-            "driver": "fs",
-            // should support events, but i could also imagine s3, ftp or even imap here
-            "driver_options": {"path": "/var/www"},
-            "parser": "json"
+    "sources": {
+        "calendars": {
+            "type": "json-fs",
+            "path": "source/????????-????-4???-????-????????????.json"
         }
     },
     "views": [
         {
-            "source": {"mount": "www", "pattern": "source/*.json"},
+            "source": "calendars",
             // all lists in matrix will be iterated and processed individually
             // this allows to create multiple view files from a single source file
             "matrix": {
-                "user": "{source.owner, source.shared_with|map(.user)}"
+                "user": "{source.shared_with|map(.user)|append(source.owner)}"
             },
             // the target file is always a json array at root level
             // multiple source files and view definitions can write into the same target
-            "target": {"mount": "www", "pattern": "views/{matrix.user}/calendars.json"},
+            "target": {
+                "type": "json-fs",
+                "path": "views/{matrix.user}/calendars.json"
+            },
             // the format is what is actually in a view-item
             "format": {
                 "name": "{source.name}",
-                "privilege": "{source.shared_with|filter(.user == matrix.user)|map(.privilege)|first|default('owner')}"
+                "privilege": "{source.shared_with|filter(.user == matrix.user)|map(.privilege)|pick(0)|default('owner')}"
             }
         },
         {
-            "source": {"mount": "www", "pattern": "source/*.json"},
+            "source": "calendars",
             // this matrix creates one entry per user per appointment
             "matrix": {
-                "user": "{source.owner, source.shared_with|map(.user)}",
+                "user": "{source.shared_with|map(.user)|append(source.owner)}",
                 "appointment": "{source.appointments}"
             },
             // multiple entries can have the same file target
             // this means 1 calender can add multiple appointments to the target file 
-            "target": {"mount": "www", "pattern": "views/{matrix.user}/{matrix.appointment.time|strftime('%Y-%m')}.json"},
+            "target": {
+                "type": "json-fs",
+                "path": "views/{matrix.user}/{matrix.appointment.time|strftime('%Y-%m')}.json"
+            },
             "format": {
                 "calendar": {
                     "name": "{source.name}",
-                    "privilege": "{source.shared_with|filter(.user == matrix.user)|map(.privilege)|first|default('owner')}"
+                    "privilege": "{source.shared_with|filter(.user == matrix.user)|map(.privilege)|pick(0)|default('owner')}"
                 },
                 "name": "{matrix.appointment.name}",
                 "time": "{matrix.appointment.time}"
@@ -267,8 +274,8 @@ Filters can be accessed and chained using `|filter_name`. Available filters are:
 - `|strftime('%Y-%m-%d')` allows to format a date using the c strftime syntax.
 - `|default('value')` replaces `null` with the specified value.
 - `|length` tells the length of a list.
-- `|first` returns the first item in a list or `null` if the list is empty.
-- `|last` returns the last item in a list or `null` if the list is empty.
+- `|pick(0)` returns a single item from the given list based on the argument or `null` if the list is empty.
+  If the argument is a negative number, it will select an item from the end
 - `|sum` sums all numbers in a list. If the list is empty, `null` will be returned.
 - `|min` min value of a list. Can be used on lists of numbers or strings. If the list is empty, `null` will be returned.
 - `|max` max value of a list. Can be used on lists of numbers or strings. If the list is empty, `null` will be returned.

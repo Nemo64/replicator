@@ -1,0 +1,45 @@
+{
+    "version": "0.0.1",
+    "sources": {
+        "calendars": {
+            "type": "json-fs",
+            "path": "source/*.json",
+            "schema": "schemas/calendar.json"
+        }
+    },
+    "views": [
+        {
+            "source": "calendars",
+            "matrix": {
+                "user": "{source.shared_with|map(.user)|prepend(source.owner)}"
+            },
+            "target": {
+                "type": "json-fs",
+                "path": "views/{matrix.user}/calendars.json"
+            },
+            "format": {
+                "name": "{source.name}",
+                "privilege": "{source.shared_with|filter(.user == matrix.user)|map(.privilege)|pick|default('owner')}"
+            }
+        },
+        {
+            "source": "calendars",
+            "matrix": {
+                "user": "{source.shared_with|map(.user)|prepend(source.owner)}",
+                "appointment": "{source.appointments}"
+            },
+            "target": {
+                "type": "json-fs",
+                "path": "views/{matrix.user}/{matrix.appointment.time|strftime('%Y-%m')}.json"
+            },
+            "format": {
+                "calendar": {
+                    "name": "{source.name}",
+                    "privilege": "{source.shared_with|filter(.user == matrix.user)|map(.privilege)|pick|default('owner')}"
+                },
+                "name": "{matrix.appointment.name}",
+                "time": "{matrix.appointment.time}"
+            }
+        }
+    ]
+}

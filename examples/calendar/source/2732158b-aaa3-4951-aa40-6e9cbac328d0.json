@@ -1,0 +1,16 @@
+{
+    "name": "Work events",
+    "owner": "user+1@example.com",
+    "shared_with": [
+        {"user": "user+2@example.com", "privilege": "read-only"}
+    ],
+    "appointments": [
+        {"time": "2021-06-07T10:00:00+02:00", "name": "Morning Meeting"},
+        {"time": "2021-06-14T10:00:00+02:00", "name": "Morning Meeting"},
+        {"time": "2021-06-21T10:00:00+02:00", "name": "Morning Meeting"},
+        {"time": "2021-06-28T10:00:00+02:00", "name": "Morning Meeting"},
+        {"time": "2021-07-05T10:00:00+02:00", "name": "Morning Meeting"},
+        {"time": "2021-07-12T10:00:00+02:00", "name": "Morning Meeting"},
+        {"time": "2021-07-26T10:00:00+02:00", "name": "Morning Meeting"}
+    ]
+}

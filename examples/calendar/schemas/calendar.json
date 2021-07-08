@@ -1,0 +1,32 @@
+{
+    "title": "Schema for calendars",
+    "description": "Schema for the calendar file",
+
+    "type": "object",
+    "required": ["name", "owner", "shared_with", "appointments"],
+    "properties": {
+        "name": {"type": "string", "minLength": 2, "maxLength": 50},
+        "owner": {"type": "string", "format": "email"},
+        "shared_with": {"type": "array", "items": {"$ref": "#/definitions/share"}},
+        "appointments": {"type": "array", "items": {"$ref": "#/definitions/appointment"}}
+    },
+
+    "definitions": {
+        "share": {
+            "type": "object",
+            "required": ["user", "privilege"],
+            "properties": {
+                "user": {"type": "string", "format": "email"},
+                "properties": {"type": "string", "enum": ["read-only", "edit"]}
+            }
+        },
+        "appointment": {
+            "type": "object",
+            "required": ["time", "name"],
+            "properties": {
+                "time": {"type": "string", "format": "date-time"},
+                "name": {"type": "string", "minLength": 2, "maxLength": 50}
+            }
+        }
+    }
+}

@@ -1,0 +1,12 @@
+{
+    "name": "Personal",
+    "owner": "user+1@example.com",
+    "shared_with": [
+        {"user": "user+2@example.com", "privilege": "read-only"}
+    ],
+    "appointments": [
+        {"time": "2021-06-28T06:00:00+02:00", "name": "Car inspection"},
+        {"time": "2021-07-03T13:30:00+02:00", "name": "Doctor"},
+        {"time": "2021-07-04T20:00:00+02:00", "name": "Dinner"}
+    ]
+}

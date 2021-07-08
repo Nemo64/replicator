@@ -11,10 +11,11 @@ ij_formatter_off_tag = @formatter:off
 ij_formatter_on_tag = @formatter:on
 ij_formatter_tags_enabled = true
 ij_wrap_on_typing = false
-ij_javascript_enforce_trailing_comma = whenmultiline
-ij_javascript_force_semicolon_style = true
-ij_javascript_import_sort_members = true
-ij_javascript_import_sort_module_name = true
+ij_typescript_enforce_trailing_comma = whenmultiline
+ij_typescript_force_semicolon_style = true
+ij_typescript_import_sort_members = true
+ij_typescript_import_sort_module_name = true
+ij_typescript_use_explicit_js_extension = true
 ij_any_blank_lines_after_imports = 1
 ij_any_keep_blank_lines_in_code = 1
 
