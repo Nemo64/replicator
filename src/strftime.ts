@@ -17,10 +17,10 @@ const formats: Record<string, (date: Date) => string> = {
     m: date => String(date.getUTCMonth() + 1).padStart(2, '0'),
 
     // year
-    C: date => String(date.getUTCFullYear()).slice(0, -2),
+    //C
     //g
     //G
-    y: date => String(date.getUTCFullYear()).slice(-2, 2),
+    y: date => String(date.getUTCFullYear()).slice(-2),
     Y: date => String(date.getUTCFullYear()),
 
     // time
