@@ -37,3 +37,8 @@ export interface Driver {
      */
     updateEntries(sourceUri: string, viewUri: string, entries: PatternObject[]): Promise<ViewUpdate>
 }
+
+/**
+ * List of driver constructors.
+ */
+export type DriverList = Record<string, new (options: PatternObject, context: DriverContext) => Driver>;

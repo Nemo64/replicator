@@ -1,4 +1,4 @@
-import {DriverList} from "./drivers.ts";
+import {DriverList} from "./driver/driver.d.ts";
 import {PatternObject} from "./pattern.ts";
 
 export interface Config {
