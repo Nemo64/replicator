@@ -1,4 +1,3 @@
-import {ensureDir} from "https://deno.land/std@0.100.0/fs/mod.ts";
 import {readAll, writeAll} from "https://deno.land/std@0.100.0/io/util.ts";
 import {dirname, join} from "https://deno.land/std@0.100.0/path/mod.ts";
 
@@ -7,7 +6,7 @@ import Ajv, {ValidateFunction} from 'https://esm.sh/ajv@8.6.1';
 
 import {PatternObject} from "../pattern.ts";
 import AbstractFs from "./abstract-fs.ts";
-import {DriverContext, ViewUpdate} from "./driver.d.ts";
+import {DriverContext} from "./driver.d.ts";
 
 const ajv = new Ajv({allErrors: true});
 addFormats(ajv);
@@ -19,7 +18,7 @@ interface ViewEntry {
 export default class JsonFs extends AbstractFs {
     private readonly validator?: ValidateFunction;
 
-    constructor(options: Record<string, string>, context: DriverContext) {
+    constructor(options: PatternObject, context: DriverContext) {
         super(options, context);
 
         if (typeof options.schema === 'string') {
@@ -46,35 +45,12 @@ export default class JsonFs extends AbstractFs {
         return data;
     }
 
-    protected async writeViewEntries(sourceUri: string, viewPath: string, entries: PatternObject[]): Promise<ViewUpdate> {
-        await ensureDir(dirname(viewPath));
-        // TODO create file besides this one to avoid write conflict
-        const file = await Deno.open(viewPath, {read: true, write: true, create: true});
+    protected async updateView(sourceUri: string, entries: PatternObject[], reader: Deno.Reader | null, writer: Deno.Writer): Promise<any> {
+        let viewEntries: ViewEntry[] = (reader ? JSON.parse(new TextDecoder().decode(await readAll(reader))) : []);
 
-        let viewEntries: ViewEntry[] = [];
-
-        // read old content
-        const oldContent = await readAll(file);
-        if (oldContent.length > 0) {
-            viewEntries = (JSON.parse(new TextDecoder().decode(oldContent)) as ViewEntry[])
-                .filter(entry => entry._source !== sourceUri);
-        }
-
-        // prepare new output
+        viewEntries = viewEntries.filter(entry => entry._source !== sourceUri); // remove entries from current source
         viewEntries.push(...entries.map(entry => ({_source: sourceUri, ...entry})));
-        const buffer = new TextEncoder().encode(JSON.stringify(viewEntries, null, 4));
 
-        await Deno.ftruncate(file.rid);
-        await Deno.seek(file.rid, 0, Deno.SeekMode.Start);
-        await writeAll(file, buffer);
-        await Deno.fdatasync(file.rid);
-        await Deno.close(file.rid);
-
-        return {
-            sourceUri: sourceUri,
-            viewUri: this.pathToUri(viewPath),
-            viewEntries: viewEntries.length,
-            viewSize: buffer.byteLength,
-        };
+        await writeAll(writer, new TextEncoder().encode(JSON.stringify(viewEntries, null, 4)));
     }
 }
