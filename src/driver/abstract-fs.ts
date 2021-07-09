@@ -1,5 +1,6 @@
 import {deferred, delay, MuxAsyncIterator, pooledMap} from "https://deno.land/std@0.100.0/async/mod.ts";
-import {ensureDir, expandGlob} from "https://deno.land/std@0.100.0/fs/mod.ts";
+import {ensureDir} from "https://deno.land/std@0.100.0/fs/ensure_dir.ts"; // importing fs/mod.ts requires --unstable
+import {expandGlob} from "https://deno.land/std@0.100.0/fs/expand_glob.ts"; // importing fs/mod.ts requires --unstable
 import {globToRegExp} from "https://deno.land/std@0.100.0/path/glob.ts";
 import {dirname, join} from "https://deno.land/std@0.100.0/path/mod.ts";
 
