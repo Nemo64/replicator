@@ -73,6 +73,8 @@ export default abstract class AbstractFs implements Driver {
         workingFiles[viewPath] = this.writeViewFile(sourceUri, viewPath, entries as PatternObject[]);
         try {
             return await workingFiles[viewPath];
+        } catch (e) {
+            throw new Error(`View: ${viewPath}\n${e}`);
         } finally {
             delete workingFiles[viewPath];
         }

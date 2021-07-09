@@ -1,0 +1,30 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+
+    "title": "Appointment view schema",
+    "$comment": "Note that view schemas are only validated against subsets of view entries so you can't validate how many entries are in a view.",
+
+    "type": "array",
+    "items": {
+        "type": "object",
+        "required": ["calendar", "name", "time"],
+        "additionalProperties": false,
+        "properties": {
+            "calendar": {"$ref": "#/definitions/calendar-ref"},
+            "name": {"type": "string", "minLength": 2, "maxLength": 50},
+            "time": {"type": "string", "format": "date-time"}
+        }
+    },
+
+    "definitions": {
+        "calendar-ref": {
+            "type": "object",
+            "required": ["name", "privilege"],
+            "additionalProperties": false,
+            "properties": {
+                "name": {"type": "string", "minLength": 2, "maxLength": 50},
+                "privilege": {"type": "string", "enum": ["owner", "read-only", "edit"]}
+            }
+        }
+    }
+}

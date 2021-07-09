@@ -1,9 +1,12 @@
 {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+
     "title": "Schema for calendars",
     "description": "Schema for the calendar file",
 
     "type": "object",
     "required": ["name", "owner", "shared_with", "appointments"],
+    "additionalProperties": false,
     "properties": {
         "name": {"type": "string", "minLength": 2, "maxLength": 50},
         "owner": {"type": "string", "format": "email"},
@@ -15,14 +18,16 @@
         "share": {
             "type": "object",
             "required": ["user", "privilege"],
+            "additionalProperties": false,
             "properties": {
                 "user": {"type": "string", "format": "email"},
-                "properties": {"type": "string", "enum": ["read-only", "edit"]}
+                "privilege": {"type": "string", "enum": ["read-only", "edit"]}
             }
         },
         "appointment": {
             "type": "object",
             "required": ["time", "name"],
+            "additionalProperties": false,
             "properties": {
                 "time": {"type": "string", "format": "date-time"},
                 "name": {"type": "string", "minLength": 2, "maxLength": 50}

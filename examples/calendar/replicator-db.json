@@ -4,7 +4,7 @@
         "calendars": {
             "type": "json-fs",
             "path": "source/*.json",
-            "schema": "schemas/calendar.json"
+            "schema": "schemas/source-calendar.json"
         }
     },
     "views": [
@@ -15,7 +15,8 @@
             },
             "target": {
                 "type": "json-fs",
-                "path": "views/{matrix.user}/calendars.json"
+                "path": "views/{matrix.user}/calendars.json",
+                "schema": "schemas/view-calendars.json"
             },
             "format": {
                 "name": "{source.name}",
@@ -30,7 +31,8 @@
             },
             "target": {
                 "type": "json-fs",
-                "path": "views/{matrix.user}/{matrix.appointment.time|strftime('%Y-%m')}.json"
+                "path": "views/{matrix.user}/{matrix.appointment.time|strftime('%Y-%m')}.json",
+                "schema": "schemas/view-appointments.json"
             },
             "format": {
                 "calendar": {

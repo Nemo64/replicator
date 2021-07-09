@@ -17,40 +17,46 @@ interface ViewEntry {
 
 export default class JsonFs extends AbstractFs {
     private readonly validator?: ValidateFunction;
+    private readonly schemaPath?: string;
 
     constructor(options: PatternObject, context: DriverContext) {
         super(options, context);
 
         if (typeof options.schema === 'string') {
-            const schemaPath = join(dirname(context.configPath), options.schema);
+            this.schemaPath = join(dirname(context.configPath), options.schema);
             try {
-                const schema = JSON.parse(Deno.readTextFileSync(schemaPath));
+                const schema = JSON.parse(Deno.readTextFileSync(this.schemaPath));
                 this.validator = ajv.compile(schema);
             } catch (e) {
-                throw new Error(`Cannot read schema ${schemaPath}: ${e}`);
+                throw new Error(`Cannot read schema ${this.schemaPath}: ${e}`);
             }
         }
     }
 
     protected async readSourceFile(path: string): Promise<PatternObject> {
         const data = JSON.parse(await Deno.readTextFile(path));
-
-        if (this.validator) {
-            this.validator(data);
-            if (this.validator.errors && this.validator.errors.length > 0) {
-                throw new Error(this.validator.errors.map(error => `${error.message} at path ${error.instancePath}`).join("\n"));
-            }
-        }
-
+        this.validate(data);
         return data;
     }
 
     protected async updateView(sourceUri: string, entries: PatternObject[], reader: Deno.Reader | null, writer: Deno.Writer): Promise<any> {
-        let viewEntries: ViewEntry[] = (reader ? JSON.parse(new TextDecoder().decode(await readAll(reader))) : []);
+        this.validate(entries);
 
+        let viewEntries: ViewEntry[] = (reader ? JSON.parse(new TextDecoder().decode(await readAll(reader))) : []);
         viewEntries = viewEntries.filter(entry => entry._source !== sourceUri); // remove entries from current source
         viewEntries.push(...entries.map(entry => ({_source: sourceUri, ...entry})));
-
         await writeAll(writer, new TextEncoder().encode(JSON.stringify(viewEntries, null, 4)));
+    }
+
+    private validate(data: any) {
+        if (!this.validator) {
+            return;
+        }
+
+        this.validator(data);
+        if (this.validator.errors && this.validator.errors.length > 0) {
+            const errors = this.validator.errors.map(error => `${error.message} at path ${error.instancePath}`);
+            throw new Error(`JSON Schema: ${this.schemaPath}\n- ${errors.join("\n- ")}`);
+        }
     }
 }

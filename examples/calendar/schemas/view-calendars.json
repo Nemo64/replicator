@@ -1,0 +1,17 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+
+    "title": "Calendar list shared with user",
+    "$comment": "Note that view schemas are only validated against subsets of view entries so you can't validate how many entries are in a view.",
+
+    "type": "array",
+    "items": {
+        "type": "object",
+        "required": ["name", "privilege"],
+        "additionalProperties": false,
+        "properties": {
+            "name": {"type": "string", "minLength": 2, "maxLength": 50},
+            "privilege": {"type": "string", "enum": ["owner", "read-only", "edit"]}
+        }
+    }
+}
