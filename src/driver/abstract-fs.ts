@@ -130,7 +130,8 @@ export default abstract class AbstractFs implements Driver {
 }
 
 const uniqueWriterOptions = {
-    timeout: 5000,
+    failureTimeout: 30000,
+    writeThroughTimeout: 5000,
     retryDelay: 100,
 };
 
@@ -141,8 +142,9 @@ const uniqueWriterOptions = {
  */
 async function openUniqueWriter(path: string, options: Partial<typeof uniqueWriterOptions> = {}): Promise<Deno.File> {
     const resolvedOptions = {...uniqueWriterOptions, ...options} as typeof uniqueWriterOptions;
+    const startTime = Date.now();
 
-    while (true) {
+    do {
         try {
             return await Deno.open(path, {write: true, createNew: true});
         } catch (e) {
@@ -154,16 +156,19 @@ async function openUniqueWriter(path: string, options: Partial<typeof uniqueWrit
         try {
             const mtime = (await Deno.stat(path)).mtime?.getTime() ?? 0;
             const editTimeAgo = Date.now() - mtime;
-            if (resolvedOptions.timeout > editTimeAgo) {
+            if (resolvedOptions.writeThroughTimeout > editTimeAgo) {
                 await delay(resolvedOptions.retryDelay);
             } else {
                 // file timed out so write over it
                 return await Deno.open(path, {write: true, create: true, truncate: true});
             }
         } catch (e) {
-            console.warn(`stat of "${path}" failed`, e);
+            console.warn(`stat of "${path}" failed, try again.`, e);
         }
-    }
+
+    } while (Date.now() - startTime > resolvedOptions.failureTimeout);
+
+    throw new Error(`Unable to open unique reader on ${path}`);
 }
 
 /**
