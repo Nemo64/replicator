@@ -168,9 +168,9 @@ async function openUniqueWriter(path: string, options: Partial<typeof uniqueWrit
             console.warn(`stat of "${path}" failed, try again.`, e);
         }
 
-    } while (Date.now() - startTime > resolvedOptions.failureTimeout);
+    } while (Date.now() - startTime < resolvedOptions.failureTimeout);
 
-    throw new Error(`Unable to open unique reader on ${path}`);
+    throw new Error(`Unable to open unique reader on ${path} after ${Date.now() - startTime}ms`);
 }
 
 /**
