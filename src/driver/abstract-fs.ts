@@ -2,7 +2,7 @@ import {deferred, delay, MuxAsyncIterator, pooledMap} from "https://deno.land/st
 import {ensureDir} from "https://deno.land/std@0.100.0/fs/ensure_dir.ts"; // importing fs/mod.ts requires --unstable
 import {expandGlob} from "https://deno.land/std@0.100.0/fs/expand_glob.ts"; // importing fs/mod.ts requires --unstable
 import {globToRegExp} from "https://deno.land/std@0.100.0/path/glob.ts";
-import {dirname, join} from "https://deno.land/std@0.100.0/path/mod.ts";
+import {basename, dirname, join} from "https://deno.land/std@0.100.0/path/mod.ts";
 
 import {parse, PatternFunction, PatternObject} from "../pattern.ts";
 import {Driver, DriverContext, SourceChangeHandler, ViewUpdate} from "./driver.d.ts";
@@ -28,23 +28,41 @@ export default abstract class AbstractFs implements Driver {
         this.configTime = context.configTime;
     }
 
-    generateUri(data: PatternObject): string {
+    rid(data: PatternObject): string {
         return this.path(data) as string;
     }
 
     start(changeHandler: SourceChangeHandler): AsyncIterable<ViewUpdate[]> {
-        const pathPattern = join(dirname(this.configPath), this.generateUri({}));
+        const pathPattern = join(dirname(this.configPath), this.rid({}));
 
         const eventIterator = new MuxAsyncIterator<{ path: string }>();
         eventIterator.add(watchFs(pathPattern));
         eventIterator.add(expandGlob(pathPattern));
+        // TODO also check shadow files
 
         // TODO the pooledMap implementation preserves order which could lead to congestion
-        return pooledMap(5, eventIterator, async ({path}) => {
+        return pooledMap(5, eventIterator, async ({path: nextPath}) => {
             try {
-                const sourceUri = this.pathToUri(path);
-                const nextData = await this.readSourceFile(path) ?? undefined;
-                return await changeHandler({sourceUri, nextData});
+                const shadowPath = `${dirname(nextPath)}/.${basename(nextPath)}~shadow`;
+
+                const [nextStat, prevStat] = await Promise.all([
+                    Deno.stat(nextPath),
+                    Deno.stat(shadowPath),
+                ]);
+
+                if (prevStat.mtime && nextStat.mtime && prevStat.mtime.getTime() >= nextStat.mtime.getTime()) {
+                    return [];
+                }
+
+                const [nextData, prevData] = await Promise.all([
+                    this.readSourceFile(nextPath),
+                    this.readSourceFile(shadowPath),
+                ]);
+
+                const sourceUri = this.pathToUri(nextPath);
+                const viewUpdates = await changeHandler({sourceUri, prevData, nextData});
+                await Deno.copyFile(nextPath, shadowPath);
+                return viewUpdates;
             } catch (e) {
                 console.error(e);
                 return [];
@@ -103,21 +121,25 @@ export default abstract class AbstractFs implements Driver {
         await ensureDir(dirname(viewPath));
         const tmpViewPath = `${viewPath}~`;
         let tmpViewFile: Deno.File | null = null;
-        let oldViewFile: Deno.File | null = null;
+        let viewFile: Deno.File | null = null;
 
         try {
             tmpViewFile = await openUniqueWriter(tmpViewPath);
-            oldViewFile = await openOptionalReader(viewPath);
+            viewFile = await openOptionalReader(viewPath);
 
-            await this.updateView(oldViewFile, tmpViewFile, entries, sourceUri);
-            await Deno.rename(tmpViewPath, viewPath);
+            const hasContent = await this.updateView(viewFile, tmpViewFile, entries, sourceUri);
+            if (hasContent) {
+                await Deno.rename(tmpViewPath, viewPath);
+            } else {
+                await Deno.remove(viewPath);
+                await Deno.remove(tmpViewPath); // delete the lock last
+            }
         } catch (e) {
-            // noinspection PointlessBooleanExpressionJS, ES6MissingAwait
             tmpViewFile && Deno.remove(tmpViewPath);
             throw e;
         } finally {
-            await Promise.all([tmpViewFile, oldViewFile]
-                .map(file => file && Deno.close(file.rid)));
+            tmpViewFile && Deno.close(tmpViewFile.rid);
+            viewFile && Deno.close(viewFile.rid);
         }
 
         const viewUri = this.pathToUri(viewPath);
@@ -132,7 +154,7 @@ export default abstract class AbstractFs implements Driver {
     /**
      * Performs the actual view update.
      */
-    protected abstract updateView(reader: Deno.Reader | null, writer: Deno.Writer, entries: PatternObject[], sourceUri: string): Promise<any>;
+    protected abstract updateView(reader: Deno.Reader | null, writer: Deno.Writer, entries: PatternObject[], sourceUri: string): Promise<boolean>;
 
     /**
      * Converts the given absolute path to an id uri.

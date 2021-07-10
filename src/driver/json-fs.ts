@@ -40,13 +40,15 @@ export default class JsonFs extends AbstractFs {
         return data;
     }
 
-    protected async updateView(reader: Deno.Reader | null, writer: Deno.Writer, entries: PatternObject[], sourceUri: string): Promise<any> {
+    protected async updateView(reader: Deno.Reader | null, writer: Deno.Writer, entries: PatternObject[], sourceUri: string): Promise<boolean> {
         this.validate(entries);
 
         let viewEntries: ViewEntry[] = (reader ? JSON.parse(new TextDecoder().decode(await readAll(reader))) : []);
         viewEntries = viewEntries.filter(entry => entry._source !== sourceUri); // remove entries from current source
         viewEntries.push(...entries.map(entry => ({_source: sourceUri, ...entry})));
         await writeAll(writer, new TextEncoder().encode(JSON.stringify(viewEntries, null, 4)));
+
+        return viewEntries.length > 0;
     }
 
     private validate(data: any) {

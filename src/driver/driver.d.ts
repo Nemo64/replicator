@@ -2,8 +2,8 @@ import {PatternObject} from "../pattern.ts";
 
 export interface SourceChange {
     readonly sourceUri: string;
-    readonly prevData?: PatternObject;
-    readonly nextData?: PatternObject;
+    readonly prevData: PatternObject | null;
+    readonly nextData: PatternObject | null;
 }
 
 export type SourceChangeHandler = (change: SourceChange) => Promise<ViewUpdate[]>
@@ -24,7 +24,7 @@ export interface Driver {
     /**
      * Generates an uri for the given data.
      */
-    generateUri(data: PatternObject): string;
+    rid(data: PatternObject): string;
 
     /**
      * Start watching the given patterns for changes.
