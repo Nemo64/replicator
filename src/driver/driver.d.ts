@@ -6,6 +6,8 @@ export interface SourceChange {
     readonly nextData?: PatternObject;
 }
 
+export type SourceChangeHandler = (change: SourceChange) => Promise<ViewUpdate[]>
+
 export interface ViewUpdate {
     readonly sourceUri: string;
     readonly viewUri: string;
@@ -20,16 +22,16 @@ export interface DriverContext {
 
 export interface Driver {
     /**
+     * Generates an uri for the given data.
+     */
+    generateUri(data: PatternObject): string;
+
+    /**
      * Start watching the given patterns for changes.
      * The driver must make sure that the old data stays available until the handler's Promise resolves.
      * After that, the handler must make sure that the new data stays available until the next change.
      */
-    start(): AsyncIterable<SourceChange>
-
-    /**
-     * Generates an uri for the given data.
-     */
-    generateUri(data: PatternObject): string;
+    start(handler: SourceChangeHandler): AsyncIterable<ViewUpdate[]>
 
     /**
      * Updates a view file.

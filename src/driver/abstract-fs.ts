@@ -5,7 +5,7 @@ import {globToRegExp} from "https://deno.land/std@0.100.0/path/glob.ts";
 import {dirname, join} from "https://deno.land/std@0.100.0/path/mod.ts";
 
 import {parse, PatternFunction, PatternObject} from "../pattern.ts";
-import {Driver, DriverContext, SourceChange, ViewUpdate} from "./driver.d.ts";
+import {Driver, DriverContext, SourceChangeHandler, ViewUpdate} from "./driver.d.ts";
 
 /**
  * This is a list of all files that are currently being written to.
@@ -28,38 +28,28 @@ export default abstract class AbstractFs implements Driver {
         this.configTime = context.configTime;
     }
 
-    async* start(): AsyncIterable<SourceChange> {
+    generateUri(data: PatternObject): string {
+        return this.path(data) as string;
+    }
+
+    start(changeHandler: SourceChangeHandler): AsyncIterable<ViewUpdate[]> {
         const pathPattern = join(dirname(this.configPath), this.generateUri({}));
 
         const eventIterator = new MuxAsyncIterator<{ path: string }>();
         eventIterator.add(watchFs(pathPattern));
         eventIterator.add(expandGlob(pathPattern));
 
-        const changeIterator = pooledMap(5, eventIterator, async ({path}): Promise<SourceChange> => {
-            const sourceUri = this.pathToUri(path);
+        // TODO the pooledMap implementation preserves order which could lead to congestion
+        return pooledMap(5, eventIterator, async ({path}) => {
             try {
-                const data = await this.readSourceFile(path);
-                return {sourceUri, nextData: data};
+                const sourceUri = this.pathToUri(path);
+                const nextData = await this.readSourceFile(path) ?? undefined;
+                return await changeHandler({sourceUri, nextData});
             } catch (e) {
-                console.error(path, e);
-                return {sourceUri};
+                console.error(e);
+                return [];
             }
         });
-
-        for await(const change of changeIterator) {
-            if (!change.prevData && !change.nextData) {
-                continue;
-            }
-
-            yield change;
-            // TODO I need to know when processing of the file finished
-            // - to prevent the same file from being processed simultaneously
-            // - so i know when to update the shadow copy (does not exist yet)
-        }
-    }
-
-    generateUri(data: PatternObject): string {
-        return this.path(data) as string;
     }
 
     async updateEntries(sourceUri: string, viewUri: string, entries: PatternObject[]): Promise<ViewUpdate> {
@@ -70,11 +60,12 @@ export default abstract class AbstractFs implements Driver {
             });
         }
 
-        workingFiles[viewPath] = this.writeViewFile(sourceUri, viewPath, entries as PatternObject[]);
+        workingFiles[viewPath] = this.updateViewFile(viewPath, entries, sourceUri);
         try {
             return await workingFiles[viewPath];
         } catch (e) {
-            throw new Error(`View: ${viewPath}\n${e}`);
+            e.message = `View: ${viewPath}\n${e.message}`;
+            throw e;
         } finally {
             delete workingFiles[viewPath];
         }
@@ -84,13 +75,31 @@ export default abstract class AbstractFs implements Driver {
      * Reads and parses a source file.
      * This method is used to read the original source file and may be used to read the shadow-copy.
      */
-    protected abstract readSourceFile(path: string): Promise<PatternObject>;
+    protected async readSourceFile(path: string): Promise<PatternObject | null> {
+        try {
+            const reader = await openOptionalReader(path);
+            if (reader !== null) {
+                const data = await this.readSource(reader);
+                Deno.close(reader.rid);
+                return data;
+            } else {
+                return null;
+            }
+        } catch (e) {
+            if (e instanceof Deno.errors.NotFound) {
+                return null;
+            } else {
+                e.message = `File: ${path}\n${e.message}`;
+                throw e;
+            }
+        }
+    }
 
     /**
      * Handles the messy async file opening logic to create a unique write and a reader.
      * Feel free to overwrite this if you have special requirements for your file handling.
      */
-    protected async writeViewFile(sourceUri: string, viewPath: string, entries: PatternObject[]): Promise<ViewUpdate> {
+    protected async updateViewFile(viewPath: string, entries: PatternObject[], sourceUri: string): Promise<ViewUpdate> {
         await ensureDir(dirname(viewPath));
         const tmpViewPath = `${viewPath}~`;
         let tmpViewFile: Deno.File | null = null;
@@ -100,33 +109,35 @@ export default abstract class AbstractFs implements Driver {
             tmpViewFile = await openUniqueWriter(tmpViewPath);
             oldViewFile = await openOptionalReader(viewPath);
 
-            await this.updateView(sourceUri, entries, oldViewFile, tmpViewFile);
+            await this.updateView(oldViewFile, tmpViewFile, entries, sourceUri);
             await Deno.rename(tmpViewPath, viewPath);
-
-            const viewUri = this.pathToUri(viewPath);
-            return {sourceUri, viewUri};
         } catch (e) {
-            // noinspection PointlessBooleanExpressionJS
-            if (tmpViewFile !== null) {
-                // noinspection ES6MissingAwait
-                Deno.remove(tmpViewPath);
-            }
+            // noinspection PointlessBooleanExpressionJS, ES6MissingAwait
+            tmpViewFile && Deno.remove(tmpViewPath);
             throw e;
         } finally {
             await Promise.all([tmpViewFile, oldViewFile]
                 .map(file => file && Deno.close(file.rid)));
         }
+
+        const viewUri = this.pathToUri(viewPath);
+        return {sourceUri, viewUri};
     }
+
+    /**
+     * Parses the content of a source file.
+     */
+    protected abstract readSource(reader: Deno.Reader): Promise<PatternObject>;
 
     /**
      * Performs the actual view update.
      */
-    protected abstract updateView(sourceUri: string, entries: PatternObject[], reader: Deno.Reader | null, writer: Deno.Writer): Promise<any>;
+    protected abstract updateView(reader: Deno.Reader | null, writer: Deno.Writer, entries: PatternObject[], sourceUri: string): Promise<any>;
 
     /**
      * Converts the given absolute path to an id uri.
      */
-    protected pathToUri(path: string): string {
+    private pathToUri(path: string): string {
         return path.substr(dirname(this.configPath).length + 1);// FIXME substring is unreliable here
     }
 }

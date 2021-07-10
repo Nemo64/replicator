@@ -28,18 +28,19 @@ export default class JsonFs extends AbstractFs {
                 const schema = JSON.parse(Deno.readTextFileSync(this.schemaPath));
                 this.validator = ajv.compile(schema);
             } catch (e) {
-                throw new Error(`Cannot read schema ${this.schemaPath}: ${e}`);
+                e.message = `Cannot read schema ${this.schemaPath}: ${e.message}`;
+                throw e;
             }
         }
     }
 
-    protected async readSourceFile(path: string): Promise<PatternObject> {
-        const data = JSON.parse(await Deno.readTextFile(path));
+    protected async readSource(reader: Deno.Reader): Promise<PatternObject> {
+        const data = JSON.parse(new TextDecoder().decode(await readAll(reader)));
         this.validate(data);
         return data;
     }
 
-    protected async updateView(sourceUri: string, entries: PatternObject[], reader: Deno.Reader | null, writer: Deno.Writer): Promise<any> {
+    protected async updateView(reader: Deno.Reader | null, writer: Deno.Writer, entries: PatternObject[], sourceUri: string): Promise<any> {
         this.validate(entries);
 
         let viewEntries: ViewEntry[] = (reader ? JSON.parse(new TextDecoder().decode(await readAll(reader))) : []);

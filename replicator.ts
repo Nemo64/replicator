@@ -30,8 +30,7 @@ for (const [sourceName, source] of Object.entries(config.sources)) {
             format: parseStructure(view.format),
         }));
 
-    const eventIterator = driver.start();
-    const updateIterator = pooledMap(5, eventIterator, change => {
+    const updateIterator = driver.start(change => {
         const updates: Promise<ViewUpdate>[] = [];
 
         if (!change.nextData) {
