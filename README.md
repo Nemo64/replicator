@@ -13,6 +13,8 @@ The aim here is to be an extension to the native filesystem or block storage (s3
 and not a completely new way how to interact with data, like most databases.
 That way, this project can profit off of decades of persistence experience.
 
+At best, look into the [examples/](examples) folder to get an idea on how it works.
+
 ## Why?
 
 What most **databases** (in general) do is:
@@ -135,67 +137,6 @@ If your client application knows these naming schemes, it can just request those
 the server. Some clever web-server/cdn configuration can handle access rights to those folders using jwt authentication
 for example.
 
-### generated files
-
-```json5
-// views/user+1@example.com/calendars.json
-[
-    {
-        // this field is needed for the efficient aggregation process
-        "_source": "source/6ff6255b-45b5-4895-8d59-50fa60663cfc.json",
-        // all other fields are config defined
-        "name": "Personal events",
-        "privilege": "owner"
-    },
-    {
-        "_source": "source/2732158b-aaa3-4951-aa40-6e9cbac328d0.json",
-        "name": "Work events",
-        "privilege": "owner"
-    },
-    {
-        "_source": "source/67763fd6-13df-4a9b-967b-88773380dea7.json",
-        "name": "Holidays",
-        "privilege": "read-only"
-    }
-]
-```
-
-```json5
-// views/user+1@example.com/appointments/2021-07.json
-[
-    {
-        "_source": "source/6ff6255b-45b5-4895-8d59-50fa60663cfc.json",
-        "calendar": {"name": "Personal events", "privilege": "owner"},
-        "time": "2021-07-03T13:30:00+02:00",
-        "name": "Doctor"
-    },
-    {
-        "_source": "source/6ff6255b-45b5-4895-8d59-50fa60663cfc.json",
-        "calendar": {"name": "Personal events", "privilege": "owner"},
-        "time": "2021-07-04T20:00:00+02:00",
-        "name": "Dinner"
-    },
-    {
-        "_source": "source/2732158b-aaa3-4951-aa40-6e9cbac328d0.json",
-        "calendar": {"name": "Work events", "privilege": "owner"},
-        "time": "2021-07-05T10:00:00+02:00",
-        "name": "Morning Meeting"
-    },
-    {
-        "_source": "source/2732158b-aaa3-4951-aa40-6e9cbac328d0.json",
-        "calendar": {"name": "Work events", "privilege": "owner"},
-        "time": "2021-07-12T10:00:00+02:00",
-        "name": "Morning Meeting"
-    },
-    {
-        "_source": "source/2732158b-aaa3-4951-aa40-6e9cbac328d0.json",
-        "calendar": {"name": "Work events", "privilege": "owner"},
-        "time": "2021-07-26T10:00:00+02:00",
-        "name": "Morning Meeting"
-    }
-]
-```
-
 ### database configuration
 
 ```json5
@@ -256,8 +197,8 @@ for example.
 
 ## Available patterns
 
-You can reference values using the `{...}` placeholder syntax within strings. Property paths can be chained using `.`
-like `first.second.third`.
+You can reference values using the `{...}` placeholder syntax within strings.
+Property paths can be chained using `.` like `first.second.third`.
 
 Available root properties are:
 
@@ -276,63 +217,66 @@ Filters can be accessed and chained using `|filter_name`. Available filters are:
 - `|length` tells the length of a list.
 - `|pick(0)` returns a single item from the given list based on the argument or `null` if the list is empty.
   If the argument is a negative number, it will select an item from the end
-- `|sum` sums all numbers in a list. If the list is empty, `null` will be returned.
-- `|min` min value of a list. Can be used on lists of numbers or strings. If the list is empty, `null` will be returned.
-- `|max` max value of a list. Can be used on lists of numbers or strings. If the list is empty, `null` will be returned.
 
-## Possible access patterns
+### generated files
 
-```jsx
-/**
- * This react element shows all calender names that you have access to.
- */
-export function CalenderList() {
-    const {username} = useLogin();
-    const {data: calendars} = useSwr(`/views/${username}/calendars.json`);
-
-    return <ul>
-        {calendars?.map(calendar =>
-            <li key={calendar.name}>{calendar.name}</li>
-        )}
-    </ul>;
-}
+```json5
+// views/user+1@example.com/calendars.json
+[
+    {
+        // this field is needed for the efficient aggregation process
+        "_source": "source/6ff6255b-45b5-4895-8d59-50fa60663cfc.json",
+        // all other fields are config defined
+        "name": "Personal events",
+        "privilege": "owner"
+    },
+    {
+        "_source": "source/2732158b-aaa3-4951-aa40-6e9cbac328d0.json",
+        "name": "Work events",
+        "privilege": "owner"
+    },
+    {
+        "_source": "source/67763fd6-13df-4a9b-967b-88773380dea7.json",
+        "name": "Holidays",
+        "privilege": "read-only"
+    }
+]
 ```
 
-```jsx
-/**
- * This react element will show all appointments from today onwards at least a month in the future
- */
-export function NextAppointments() {
-    const startTime = new Date();
-    startTime.setHours(0, 0, 0, 0); // beginning of the day in users timezone
-
-    const {username} = useLogin();
-    const pager = pageIndex => {
-        const date = new Date(startTime.getTime());
-        date.setUTCMonth(date.getUTCMonth() + pageIndex);
-        return username && `/views/${username}/${date.getUTCFullYear()}-${date.getUTCMonth() + 1}.json`
+```json5
+// views/user+1@example.com/appointments/2021-07.json
+[
+    {
+        "_source": "source/6ff6255b-45b5-4895-8d59-50fa60663cfc.json",
+        "calendar": {"name": "Personal events", "privilege": "owner"},
+        "time": "2021-07-03T13:30:00+02:00",
+        "name": "Doctor"
+    },
+    {
+        "_source": "source/6ff6255b-45b5-4895-8d59-50fa60663cfc.json",
+        "calendar": {"name": "Personal events", "privilege": "owner"},
+        "time": "2021-07-04T20:00:00+02:00",
+        "name": "Dinner"
+    },
+    {
+        "_source": "source/2732158b-aaa3-4951-aa40-6e9cbac328d0.json",
+        "calendar": {"name": "Work events", "privilege": "owner"},
+        "time": "2021-07-05T10:00:00+02:00",
+        "name": "Morning Meeting"
+    },
+    {
+        "_source": "source/2732158b-aaa3-4951-aa40-6e9cbac328d0.json",
+        "calendar": {"name": "Work events", "privilege": "owner"},
+        "time": "2021-07-12T10:00:00+02:00",
+        "name": "Morning Meeting"
+    },
+    {
+        "_source": "source/2732158b-aaa3-4951-aa40-6e9cbac328d0.json",
+        "calendar": {"name": "Work events", "privilege": "owner"},
+        "time": "2021-07-26T10:00:00+02:00",
+        "name": "Morning Meeting"
     }
-
-    const {data: views, size, setSize, isValidating} = useSWRInfinite(pager, null, {initialSize: 2});
-    const appointments = views
-        .flatMap(view => Array.isArray(view) ? view : []) // spread views to flat array
-        .filter(appointment => Date.parse(appointment.time) >= startTime.getTime()) // only newer than startTime
-        .sort((a, b) => Date.parse(a.time) - Date.parse(b.time)); // sort by time
-
-    return <ul>
-        {appointments?.map(appointment =>
-            <li key={`${JSON.stringify(appointment)}`}>
-                {Date(appointment.time)} {appointment.name}
-            </li>
-        )}
-        {isValidating && (
-            <li>loading...</li>
-        )}
-        {!isValidating && size < 12 && (
-            <li><button type="button" onClick={() => setSize(size + 1)}>load more</button></li>
-        )}
-    </ul>
-}
+]
 ```
 
 [CouchDB Views]: https://docs.couchdb.org/en/stable/ddocs/views/intro.html#what-is-a-view
