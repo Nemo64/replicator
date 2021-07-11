@@ -13,34 +13,6 @@ The aim here is to be an extension to the native filesystem or block storage (s3
 and not a completely new way how to interact with data, like most databases.
 That way, this project can profit off of decades of persistence experience.
 
-At best, look into the [examples/](examples) folder to get an idea on how it works.
-
-## Why?
-
-What most **databases** (in general) do is:
-
-- optimize for small records
-- allow you to access your records in multiple ways (multiple views)
-- allow you to efficiently read multiple records at the same time
-- have/require processes that manage access to the underlying storage/cache with special hosting requirements
-
-Other features like search, aggregation, and transactions are specific to database types like SQL.
-
-This is in strong contrast to the normal os-**filesystem** and object storages like **s3** which:
-
-- optimize for larger records/files
-- only have a **single way to access a record**/file
-- have significant **overhead when accessing multiple records**/files
-- require nothing more than a modern kernel and are practically available everywhere
-
-So what you usually do is store application data in a normalized form in a database.
-Then you build views for your application that tap into your databases capability to list many records at once.
-You do this because you want your clients to get everything they want with as few round-trips as possible,
-so giving them a large stream of data with just the properties they need is optimal.
-
-However, that means that most views will require to run some code on your infrastructure that accesses your database,
-which consumes some cpu resources and may present scaling issues when you actually have traffic.
-
 ## what is this project about?
 
 **This project is about solving the "multiple records/files" issue of filesystems.**
@@ -61,44 +33,10 @@ That does mean we are duplicating a lot of data, but the list of advantages is l
 - Most programming environments can handle files well
 - Shared and exclusive locking is also usually supported (~[usually](https://github.com/denoland/deno/issues/11192))
 
-## Design goals/considerations
-
-- Must work with any filesystem that supports events for easy hackable local development and small/medium deployments.
-- Must plug into existing object storage solutions like **AWS S3 with serverless compute**.
-- Must not provide an own api to access files, so existing reliable solutions can be used.
-- Use web formats for storage, like json, in a way that is directly deliverable without an application layer.
-- Updates must scan as few source files as possible, so updates are quick. (less than a second at best)
-- Recovery must be possible if watchers or updates are interrupted.
-- Don't invent new normalization rules. Work directly with target data structures to minimize abstraction and mapping.
-- Make the usually ugly and error prune task of denormalization an easy and obvious one.
-
-## Challenges
-
-- Every write requires a rewrite of an entire file (unless some trickery is used). Since we are talking about sequential
-  reads and writes, I don't think that is an issue in most cases. Depending on how your split your base files, those
-  could grow indefinitely though.
-- Relying entirely on filesystem events could lead to issues on some systems. Mutagen has
-  a [great documentation](https://mutagen.io/documentation/synchronization/watching)
-  on their challenges and how they solved it.
-- Figuring out which views require an update is easy as long as data is added. If data is removed, we'll need access to
-  the history of that file to figure out which views were affected. I don't know yet if that can be gracefully solved or
-  requires file duplication for later comparison.
-- Only a single view is writable and contains the truth. You must only write in your base files.
-- There are solutions for atomic writes to files, but I don't know how reliable they are. Write operations are atomic up
-  to a point: https://serverfault.com/a/947789
-- Rebuilding large amount of views requires some considerations since it might not be feasible to keep all variations in
-  ram until all files are scanned.
-- Reorganization of the base files will probably result in a change of your public apis, which is undesirable. The
-  design should strive to minimize those breaking changes whenever possible.
-
-## Inspirations
-
-This entire concept is based on resolving the multi-view issue of using S3 object storage as database.
-
-The replication idea is inspired by dynamoDB's secondary indexes and [CouchDB Views]
-as well as my experience with denormalizing sql tables where join performance becomes an issue.
 
 ## calendar example
+
+This example is available in the [examples/](examples) folder.
 
 In a database, you'd usually normalize the data down to basic calendar information and appointments. But for
 replicator-db, you want to store as much related data in a single file as possible.
@@ -278,5 +216,43 @@ Filters can be accessed and chained using `|filter_name`. Available filters are:
     }
 ]
 ```
+
+## Design goals/considerations
+
+- Must work with any filesystem that supports events for easy hackable local development and small/medium deployments.
+- Must plug into existing object storage solutions like **AWS S3 with serverless compute**.
+- Must not provide an own api to access files, so existing reliable solutions can be used.
+- Use web formats for storage, like json, in a way that is directly deliverable without an application layer.
+- Updates must scan as few source files as possible, so updates are quick. (less than a second at best)
+- Recovery must be possible if watchers or updates are interrupted.
+- Don't invent new normalization rules. Work directly with target data structures to minimize abstraction and mapping.
+- Make the usually ugly and error prune task of denormalization an easy and obvious one.
+
+## Challenges
+
+- Every write requires a rewrite of an entire file (unless some trickery is used). Since we are talking about sequential
+  reads and writes, I don't think that is an issue in most cases. Depending on how your split your base files, those
+  could grow indefinitely though.
+- Relying entirely on filesystem events could lead to issues on some systems. Mutagen has
+  a [great documentation](https://mutagen.io/documentation/synchronization/watching)
+  on their challenges and how they solved it.
+- Figuring out which views require an update is easy as long as data is added. If data is removed, we'll need access to
+  the history of that file to figure out which views were affected. I don't know yet if that can be gracefully solved or
+  requires file duplication for later comparison.
+- Only a single view is writable and contains the truth. You must only write in your base files.
+- There are solutions for atomic writes to files, but I don't know how reliable they are. Write operations are atomic up
+  to a point: https://serverfault.com/a/947789
+- Rebuilding large amount of views requires some considerations since it might not be feasible to keep all variations in
+  ram until all files are scanned.
+- Reorganization of the base files will probably result in a change of your public apis, which is undesirable. The
+  design should strive to minimize those breaking changes whenever possible.
+
+## Inspirations
+
+This entire concept is based on resolving the multi-view issue of using S3 object storage as database.
+
+The replication idea is inspired by dynamoDB's secondary indexes and [CouchDB Views]
+as well as my experience with denormalizing sql tables where join performance becomes an issue.
+
 
 [CouchDB Views]: https://docs.couchdb.org/en/stable/ddocs/views/intro.html#what-is-a-view
