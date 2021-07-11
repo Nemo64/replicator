@@ -43,14 +43,14 @@ export default abstract class AbstractFs implements Driver {
         // TODO the pooledMap implementation preserves order which could lead to congestion
         return pooledMap(5, eventIterator, async ({path: nextPath}) => {
             try {
-                const shadowPath = `${dirname(nextPath)}/.${basename(nextPath)}~shadow`;
+                const shadowPath = `${dirname(nextPath)}/.${basename(nextPath)}.shadow`;
 
                 const [nextStat, prevStat] = await Promise.all([
-                    Deno.stat(nextPath),
-                    Deno.stat(shadowPath),
+                    Deno.stat(nextPath).catch(e => e instanceof Deno.errors.NotFound ? null : Promise.reject(e)),
+                    Deno.stat(shadowPath).catch(e => e instanceof Deno.errors.NotFound ? null : Promise.reject(e)),
                 ]);
 
-                if (prevStat.mtime && nextStat.mtime && prevStat.mtime.getTime() >= nextStat.mtime.getTime()) {
+                if ((prevStat?.mtime?.getTime() ?? 0) > (nextStat?.mtime?.getTime() ?? 0)) {
                     return [];
                 }
 
