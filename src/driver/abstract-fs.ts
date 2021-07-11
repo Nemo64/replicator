@@ -74,8 +74,8 @@ export default abstract class AbstractFs implements Driver {
                 }
 
                 const [nextData, prevData] = await Promise.all([
-                    this.readSourceFile(nextPath),
-                    this.readSourceFile(prevPath),
+                    nextStat ? this.readSourceFile(nextPath) : null,
+                    prevStat ? this.readSourceFile(prevPath) : null,
                 ]);
 
                 viewUpdates.push(...await changeHandler({sourceId, prevData, nextData, prevTime, nextTime}));
