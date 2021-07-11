@@ -19,7 +19,7 @@ This command will start the replicator daemon which will watch the source folder
 Go ahead and play around with the source files.
 
 ```bash
-deno run --watch --allow-read --allow-write ../../replicator.ts --configFile replicator-db.json
+deno run --watch --unstable --allow-read --allow-write ../../replicator.ts --configFile replicator-db.json
 ```
 
 ## Folder Structure

@@ -78,8 +78,19 @@ export default abstract class AbstractFs implements Driver {
                     prevStat ? this.readSourceFile(prevPath) : null,
                 ]);
 
-                viewUpdates.push(...await changeHandler({sourceId, prevData, nextData, prevTime, nextTime}));
-                await Deno.copyFile(nextPath, prevPath);
+                const change = {sourceId, prevData, nextData, prevTime, nextTime};
+                viewUpdates.push(...await changeHandler(change));
+
+                if (nextStat) {
+                    await Deno.copyFile(nextPath, prevPath);
+                    // if the next time older than the config file, "touch" the new shadow to mark it as newer
+                    // @ts-ignore undefined time results in false
+                    if (nextTime?.getTime() < this.configTime.getTime()) {
+                        await Deno.utime(prevPath, new Date, this.configTime);
+                    }
+                } else if (prevStat) {
+                    await Deno.remove(prevPath);
+                }
 
                 const duration = performance.now() - eventStart;
                 return {sourceId, kind, viewUpdates, duration};
