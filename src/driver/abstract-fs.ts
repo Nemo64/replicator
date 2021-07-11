@@ -47,7 +47,7 @@ export default abstract class AbstractFs implements Driver {
     startWatching(changeHandler: SourceChangeHandler): AsyncIterable<Update> {
         const pathPattern = join(this.basePath, this.buildId({}));
 
-        const eventIterator = new MuxAsyncIterator<{ path: string }>();
+        const eventIterator = new MuxAsyncIterator<{ path: string, kind?: string }>();
         eventIterator.add(watchFs(pathPattern, globOptions));
         eventIterator.add(expandGlob(pathPattern, globOptions));
         // TODO also check shadow files
@@ -68,9 +68,9 @@ export default abstract class AbstractFs implements Driver {
                 const prevTime = prevStat?.mtime ?? null;
                 const nextTime = nextStat?.mtime ?? null;
                 // @ts-ignore greater than with undefined is false, which is expected here
-                if (prevTime?.getTime() > nextTime?.getTime() && prevTime?.getTime() > this.configTime.getTime()) {
+                if (prevTime?.getTime() >= nextTime?.getTime() && prevTime?.getTime() >= this.configTime.getTime()) {
                     const duration = performance.now() - eventStart;
-                    return {sourceId, viewUpdates, duration};
+                    return {sourceId, kind, viewUpdates, duration};
                 }
 
                 const [nextData, prevData] = await Promise.all([
@@ -82,11 +82,11 @@ export default abstract class AbstractFs implements Driver {
                 await Deno.copyFile(nextPath, prevPath);
 
                 const duration = performance.now() - eventStart;
-                return {sourceId, viewUpdates, duration};
+                return {sourceId, kind, viewUpdates, duration};
             } catch (e) {
                 console.error(e);
                 const duration = performance.now() - eventStart;
-                return {sourceId, viewUpdates, duration};
+                return {sourceId, kind, viewUpdates, duration};
             }
         });
     }
@@ -99,8 +99,8 @@ export default abstract class AbstractFs implements Driver {
             });
         }
 
-        workingFiles[viewPath] = this.updateViewFile(viewPath, entries, sourceId);
         try {
+            workingFiles[viewPath] = this.updateViewFile(viewPath, entries, sourceId);
             return await workingFiles[viewPath];
         } catch (e) {
             e.message = `View: ${viewPath}\n${e.message}`;

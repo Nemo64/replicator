@@ -96,7 +96,7 @@ for (const [sourceName, source] of Object.entries(config.sources)) {
 
     for await (const update of updateIterator) {
         console.log(
-            `process "${update.sourceId}" in ${update.duration} ms`,
+            `process "${update.sourceId}" (${update.kind}) in ${update.duration} ms`,
             update.viewUpdates.map(view => view.viewId),
         );
     }

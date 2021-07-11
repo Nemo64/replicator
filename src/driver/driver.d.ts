@@ -18,6 +18,7 @@ export interface ViewUpdate {
 
 export interface Update {
     readonly sourceId: string;
+    readonly kind: string;
     readonly viewUpdates: ViewUpdate[];
     readonly duration: number;
 }
