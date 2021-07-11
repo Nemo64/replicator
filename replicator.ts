@@ -18,7 +18,11 @@ const config = JSON.parse(await Deno.readTextFile(configPath)) as Config;
 validate({config, drivers});
 
 const configTime = (await Deno.stat(configPath)).mtime ?? new Date;
-const driverContext: DriverContext = {configPath, configTime};
+const driverContext: DriverContext = {
+    configPath,
+    configTime,
+    concurrency: 8, // v8 has up to 8 worker threads
+};
 
 interface FormatContext {
     source: PatternObject;

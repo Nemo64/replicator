@@ -25,6 +25,7 @@ export interface Update {
 export interface DriverContext {
     readonly configPath: string;
     readonly configTime: Date;
+    readonly concurrency: number;
 }
 
 export interface Driver {

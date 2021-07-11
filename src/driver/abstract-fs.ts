@@ -24,6 +24,7 @@ export default abstract class AbstractFs implements Driver {
     private readonly id: PatternFunction;
     private readonly basePath: string;
     private readonly configTime: Date;
+    private readonly concurrency: number;
 
     protected constructor(options: PatternObject, context: DriverContext) {
         if (typeof options.path !== 'string') {
@@ -36,6 +37,7 @@ export default abstract class AbstractFs implements Driver {
         this.id = parse(options.path.slice(patternPath.length + 1));
         this.basePath = join(configDir, patternPath);
         this.configTime = context.configTime;
+        this.concurrency = context.concurrency;
     }
 
     buildId(data: PatternObject): string {
@@ -51,7 +53,7 @@ export default abstract class AbstractFs implements Driver {
         // TODO also check shadow files
 
         // TODO the pooledMap implementation preserves order which could lead to congestion
-        return pooledMap(5, eventIterator, async ({path: nextPath}) => {
+        return pooledMap(this.concurrency, eventIterator, async ({path: nextPath, kind = 'scan'}) => {
             const eventStart = performance.now();
             const sourceId = relative(this.basePath, nextPath);
             const viewUpdates = [] as ViewUpdate[];
