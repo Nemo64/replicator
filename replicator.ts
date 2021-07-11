@@ -35,27 +35,32 @@ for (const [sourceName, source] of Object.entries(config.sources)) {
             format: parseStructure(view.format) as unknown as (data: FormatContext) => PatternObject,
         }));
 
-    const updateIterator = driver.start(change => {
+    const updateIterator = driver.startWatching(change => {
         const updates: Promise<ViewUpdate>[] = [];
+        const configChanged = change.prevTime && change.prevTime.getTime() < configTime.getTime();
 
         if (!change.nextData) {
             return Promise.resolve([]);
         }
 
         for (const view of views) {
-            const prevEntriesByRID = new Map<string, Set<string>>();
-            const nextEntriesByRID = new Map<string, Map<string, PatternObject>>();
+            const prevEntriesById = new Map<string, Set<string>>();
+            const nextEntriesById = new Map<string, Map<string, PatternObject>>();
 
             if (change.prevData) {
                 for (const mutation of permuteMatrix(view.matrix({source: change.prevData}))) {
                     const context = {source: change.prevData, matrix: mutation};
-                    const rid = view.target.rid(context);
-                    const entry = view.format(context);
-                    if (!prevEntriesByRID.get(rid)?.add(hash(entry))) {
-                        prevEntriesByRID.set(rid, new Set([hash(entry)]));
+                    const id = view.target.buildId(context);
+
+                    if (!configChanged) {
+                        const entry = view.format(context);
+                        if (!prevEntriesById.get(id)?.add(hash(entry))) {
+                            prevEntriesById.set(id, new Set([hash(entry)]));
+                        }
                     }
-                    if (!nextEntriesByRID.has(rid)) {
-                        nextEntriesByRID.set(rid, new Map());
+
+                    if (!nextEntriesById.has(id)) {
+                        nextEntriesById.set(id, new Map());
                     }
                 }
             }
@@ -63,22 +68,22 @@ for (const [sourceName, source] of Object.entries(config.sources)) {
             if (change.nextData) {
                 for (const mutation of permuteMatrix(view.matrix({source: change.nextData}))) {
                     const context = {source: change.nextData, matrix: mutation};
-                    const rid = view.target.rid(context);
+                    const id = view.target.buildId(context);
                     const entry = view.format(context);
-                    if (!nextEntriesByRID.get(rid)?.set(hash(entry), entry)) {
-                        nextEntriesByRID.set(rid, new Map().set(hash(entry), entry));
+                    if (!nextEntriesById.get(id)?.set(hash(entry), entry)) {
+                        nextEntriesById.set(id, new Map().set(hash(entry), entry));
                     }
                 }
             }
 
-            for (const [rid, entries] of nextEntriesByRID.entries()) {
-                const prevEntries = prevEntriesByRID.get(rid);
+            for (const [id, entries] of nextEntriesById.entries()) {
+                const prevEntries = prevEntriesById.get(id);
                 if (prevEntries && prevEntries.size === entries.size) {
-                    if ([...entries.keys()].every(key => prevEntries.has(key))) {
+                    if ([...entries.keys()].every(hash => prevEntries.has(hash))) {
                         continue; // skip this update since nothing changed
                     }
                 }
-                updates.push(view.target.updateEntries(change.sourceUri, rid, Array.from(entries.values())));
+                updates.push(view.target.updateEntries(change.sourceId, id, Array.from(entries.values())));
             }
         }
 
@@ -88,8 +93,8 @@ for (const [sourceName, source] of Object.entries(config.sources)) {
     for await (const updates of updateIterator) {
         console.log(
             'updated',
-            updates.map(update => update.sourceUri).filter((uri, index, list) => index === list.indexOf(uri)),
-            updates.map(update => update.viewUri).filter((uri, index, list) => index === list.indexOf(uri)),
+            updates.map(update => update.sourceId).filter((uri, index, list) => index === list.indexOf(uri)),
+            updates.map(update => update.viewId).filter((uri, index, list) => index === list.indexOf(uri)),
         );
     }
 }

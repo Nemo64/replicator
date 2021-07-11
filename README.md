@@ -146,7 +146,7 @@ for example.
     "sources": {
         "calendars": {
             "type": "json-fs",
-            "path": "source/????????-????-4???-????-????????????.json"
+            "path": "source/*.json"
         }
     },
     "views": [
@@ -225,18 +225,18 @@ Filters can be accessed and chained using `|filter_name`. Available filters are:
 [
     {
         // this field is needed for the efficient aggregation process
-        "_source": "source/6ff6255b-45b5-4895-8d59-50fa60663cfc.json",
+        "_source": "6ff6255b-45b5-4895-8d59-50fa60663cfc.json",
         // all other fields are config defined
         "name": "Personal events",
         "privilege": "owner"
     },
     {
-        "_source": "source/2732158b-aaa3-4951-aa40-6e9cbac328d0.json",
+        "_source": "2732158b-aaa3-4951-aa40-6e9cbac328d0.json",
         "name": "Work events",
         "privilege": "owner"
     },
     {
-        "_source": "source/67763fd6-13df-4a9b-967b-88773380dea7.json",
+        "_source": "67763fd6-13df-4a9b-967b-88773380dea7.json",
         "name": "Holidays",
         "privilege": "read-only"
     }
@@ -247,31 +247,31 @@ Filters can be accessed and chained using `|filter_name`. Available filters are:
 // views/user+1@example.com/appointments/2021-07.json
 [
     {
-        "_source": "source/6ff6255b-45b5-4895-8d59-50fa60663cfc.json",
+        "_source": "6ff6255b-45b5-4895-8d59-50fa60663cfc.json",
         "calendar": {"name": "Personal events", "privilege": "owner"},
         "time": "2021-07-03T13:30:00+02:00",
         "name": "Doctor"
     },
     {
-        "_source": "source/6ff6255b-45b5-4895-8d59-50fa60663cfc.json",
+        "_source": "6ff6255b-45b5-4895-8d59-50fa60663cfc.json",
         "calendar": {"name": "Personal events", "privilege": "owner"},
         "time": "2021-07-04T20:00:00+02:00",
         "name": "Dinner"
     },
     {
-        "_source": "source/2732158b-aaa3-4951-aa40-6e9cbac328d0.json",
+        "_source": "2732158b-aaa3-4951-aa40-6e9cbac328d0.json",
         "calendar": {"name": "Work events", "privilege": "owner"},
         "time": "2021-07-05T10:00:00+02:00",
         "name": "Morning Meeting"
     },
     {
-        "_source": "source/2732158b-aaa3-4951-aa40-6e9cbac328d0.json",
+        "_source": "2732158b-aaa3-4951-aa40-6e9cbac328d0.json",
         "calendar": {"name": "Work events", "privilege": "owner"},
         "time": "2021-07-12T10:00:00+02:00",
         "name": "Morning Meeting"
     },
     {
-        "_source": "source/2732158b-aaa3-4951-aa40-6e9cbac328d0.json",
+        "_source": "2732158b-aaa3-4951-aa40-6e9cbac328d0.json",
         "calendar": {"name": "Work events", "privilege": "owner"},
         "time": "2021-07-26T10:00:00+02:00",
         "name": "Morning Meeting"

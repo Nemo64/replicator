@@ -1,7 +1,9 @@
 import {PatternObject} from "../pattern.ts";
 
 export interface SourceChange {
-    readonly sourceUri: string;
+    readonly sourceId: string;
+    readonly prevTime: Date | null,
+    readonly nextTime: Date | null,
     readonly prevData: PatternObject | null;
     readonly nextData: PatternObject | null;
 }
@@ -9,8 +11,8 @@ export interface SourceChange {
 export type SourceChangeHandler = (change: SourceChange) => Promise<ViewUpdate[]>
 
 export interface ViewUpdate {
-    readonly sourceUri: string;
-    readonly viewUri: string;
+    readonly sourceId: string;
+    readonly viewId: string;
     readonly viewEntries?: number;
     readonly viewSize?: number;
 }
@@ -22,22 +24,22 @@ export interface DriverContext {
 
 export interface Driver {
     /**
-     * Generates an uri for the given data.
+     * Generates an id for the given data.
      */
-    rid(data: PatternObject): string;
+    buildId(data: PatternObject): string;
 
     /**
      * Start watching the given patterns for changes.
      * The driver must make sure that the old data stays available until the handler's Promise resolves.
      * After that, the handler must make sure that the new data stays available until the next change.
      */
-    start(handler: SourceChangeHandler): AsyncIterable<ViewUpdate[]>
+    startWatching(handler: SourceChangeHandler): AsyncIterable<ViewUpdate[]>
 
     /**
      * Updates a view file.
      * View files must always be able to take multiple entries.
      */
-    updateEntries(sourceUri: string, viewUri: string, entries: PatternObject[]): Promise<ViewUpdate>
+    updateEntries(sourceId: string, viewId: string, entries: PatternObject[]): Promise<ViewUpdate>
 }
 
 /**

@@ -1,8 +1,8 @@
 import {deferred, delay, MuxAsyncIterator, pooledMap} from "https://deno.land/std@0.100.0/async/mod.ts";
 import {ensureDir} from "https://deno.land/std@0.100.0/fs/ensure_dir.ts"; // importing fs/mod.ts requires --unstable
-import {expandGlob} from "https://deno.land/std@0.100.0/fs/expand_glob.ts"; // importing fs/mod.ts requires --unstable
-import {globToRegExp} from "https://deno.land/std@0.100.0/path/glob.ts";
-import {basename, dirname, join} from "https://deno.land/std@0.100.0/path/mod.ts";
+import {expandGlob, ExpandGlobOptions} from "https://deno.land/std@0.100.0/fs/expand_glob.ts"; // importing fs/mod.ts requires --unstable
+import {globToRegExp, GlobOptions} from "https://deno.land/std@0.100.0/path/glob.ts";
+import {basename, dirname, join, relative} from "https://deno.land/std@0.100.0/path/mod.ts";
 
 import {parse, PatternFunction, PatternObject} from "../pattern.ts";
 import {Driver, DriverContext, SourceChangeHandler, ViewUpdate} from "./driver.d.ts";
@@ -13,9 +13,16 @@ import {Driver, DriverContext, SourceChangeHandler, ViewUpdate} from "./driver.d
  */
 const workingFiles: Record<string, Promise<ViewUpdate>> = {};
 
+const globOptions: ExpandGlobOptions = {
+    extended: false,
+    globstar: false,
+    caseInsensitive: false,
+    includeDirs: false,
+};
+
 export default abstract class AbstractFs implements Driver {
-    private readonly path: PatternFunction;
-    private readonly configPath: string;
+    private readonly id: PatternFunction;
+    private readonly basePath: string;
     private readonly configTime: Date;
 
     protected constructor(options: PatternObject, context: DriverContext) {
@@ -23,45 +30,51 @@ export default abstract class AbstractFs implements Driver {
             throw new Error(`options path must be defined`);
         }
 
-        this.path = parse(options.path);
-        this.configPath = context.configPath;
+        const configDir = dirname(context.configPath);
+        const patternPath = pathFromPattern(options.path);
+
+        this.id = parse(options.path.slice(patternPath.length + 1));
+        this.basePath = join(configDir, patternPath);
         this.configTime = context.configTime;
     }
 
-    rid(data: PatternObject): string {
-        return this.path(data) as string;
+    buildId(data: PatternObject): string {
+        return this.id(data) as string;
     }
 
-    start(changeHandler: SourceChangeHandler): AsyncIterable<ViewUpdate[]> {
-        const pathPattern = join(dirname(this.configPath), this.rid({}));
+    startWatching(changeHandler: SourceChangeHandler): AsyncIterable<ViewUpdate[]> {
+        const pathPattern = join(this.basePath, this.buildId({}));
 
         const eventIterator = new MuxAsyncIterator<{ path: string }>();
-        eventIterator.add(watchFs(pathPattern));
-        eventIterator.add(expandGlob(pathPattern));
+        eventIterator.add(watchFs(pathPattern, globOptions));
+        eventIterator.add(expandGlob(pathPattern, globOptions));
         // TODO also check shadow files
 
         // TODO the pooledMap implementation preserves order which could lead to congestion
         return pooledMap(5, eventIterator, async ({path: nextPath}) => {
             try {
-                const shadowPath = `${dirname(nextPath)}/.${basename(nextPath)}.shadow`;
+                const prevPath = `${dirname(nextPath)}/.${basename(nextPath)}.shadow`;
 
                 const [nextStat, prevStat] = await Promise.all([
                     Deno.stat(nextPath).catch(e => e instanceof Deno.errors.NotFound ? null : Promise.reject(e)),
-                    Deno.stat(shadowPath).catch(e => e instanceof Deno.errors.NotFound ? null : Promise.reject(e)),
+                    Deno.stat(prevPath).catch(e => e instanceof Deno.errors.NotFound ? null : Promise.reject(e)),
                 ]);
 
-                if ((prevStat?.mtime?.getTime() ?? 0) > (nextStat?.mtime?.getTime() ?? 0)) {
+                const prevTime = prevStat?.mtime ?? null;
+                const nextTime = nextStat?.mtime ?? null;
+                // @ts-ignore greater than with undefined is false, which is expected here
+                if (prevTime?.getTime() > nextTime?.getTime() && prevTime?.getTime() > this.configTime.getTime()) {
                     return [];
                 }
 
                 const [nextData, prevData] = await Promise.all([
                     this.readSourceFile(nextPath),
-                    this.readSourceFile(shadowPath),
+                    this.readSourceFile(prevPath),
                 ]);
 
-                const sourceUri = this.pathToUri(nextPath);
-                const viewUpdates = await changeHandler({sourceUri, prevData, nextData});
-                await Deno.copyFile(nextPath, shadowPath);
+                const sourceId = relative(this.basePath, nextPath);
+                const viewUpdates = await changeHandler({sourceId, prevData, nextData, prevTime, nextTime});
+                await Deno.copyFile(nextPath, prevPath);
                 return viewUpdates;
             } catch (e) {
                 console.error(e);
@@ -70,15 +83,15 @@ export default abstract class AbstractFs implements Driver {
         });
     }
 
-    async updateEntries(sourceUri: string, viewUri: string, entries: PatternObject[]): Promise<ViewUpdate> {
-        const viewPath = join(dirname(this.configPath), viewUri);
+    async updateEntries(sourceId: string, viewId: string, entries: PatternObject[]): Promise<ViewUpdate> {
+        const viewPath = join(this.basePath, viewId);
         if (workingFiles[viewPath]) {
             await workingFiles[viewPath].catch(() => {
                 // ignore errors from other writes
             });
         }
 
-        workingFiles[viewPath] = this.updateViewFile(viewPath, entries, sourceUri);
+        workingFiles[viewPath] = this.updateViewFile(viewPath, entries, sourceId);
         try {
             return await workingFiles[viewPath];
         } catch (e) {
@@ -117,7 +130,7 @@ export default abstract class AbstractFs implements Driver {
      * Handles the messy async file opening logic to create a unique write and a reader.
      * Feel free to overwrite this if you have special requirements for your file handling.
      */
-    protected async updateViewFile(viewPath: string, entries: PatternObject[], sourceUri: string): Promise<ViewUpdate> {
+    protected async updateViewFile(viewPath: string, entries: PatternObject[], sourceId: string): Promise<ViewUpdate> {
         await ensureDir(dirname(viewPath));
         const tmpViewPath = `${viewPath}~`;
         let tmpViewFile: Deno.File | null = null;
@@ -127,7 +140,7 @@ export default abstract class AbstractFs implements Driver {
             tmpViewFile = await openUniqueWriter(tmpViewPath);
             viewFile = await openOptionalReader(viewPath);
 
-            const hasContent = await this.updateView(viewFile, tmpViewFile, entries, sourceUri);
+            const hasContent = await this.updateView(viewFile, tmpViewFile, entries, sourceId);
             if (hasContent) {
                 await Deno.rename(tmpViewPath, viewPath);
             } else {
@@ -142,8 +155,7 @@ export default abstract class AbstractFs implements Driver {
             viewFile && Deno.close(viewFile.rid);
         }
 
-        const viewUri = this.pathToUri(viewPath);
-        return {sourceUri, viewUri};
+        return {sourceId, viewId: relative(this.basePath, viewPath)};
     }
 
     /**
@@ -154,14 +166,7 @@ export default abstract class AbstractFs implements Driver {
     /**
      * Performs the actual view update.
      */
-    protected abstract updateView(reader: Deno.Reader | null, writer: Deno.Writer, entries: PatternObject[], sourceUri: string): Promise<boolean>;
-
-    /**
-     * Converts the given absolute path to an id uri.
-     */
-    private pathToUri(path: string): string {
-        return path.substr(dirname(this.configPath).length + 1);// FIXME substring is unreliable here
-    }
+    protected abstract updateView(reader: Deno.Reader | null, writer: Deno.Writer, entries: PatternObject[], sourceId: string): Promise<boolean>;
 }
 
 const uniqueWriterOptions = {
@@ -170,13 +175,15 @@ const uniqueWriterOptions = {
     retryDelay: 100,
 };
 
+type UniqueWriterOptions = typeof uniqueWriterOptions;
+
 /**
  * Creates a writer at the given path.
  * This expects the target to not exist as an alternative to locking files.
  * By convention, name your files with a tilde (~) at the end and then rename it to the target location.
  */
-async function openUniqueWriter(path: string, options: Partial<typeof uniqueWriterOptions> = {}): Promise<Deno.File> {
-    const resolvedOptions = {...uniqueWriterOptions, ...options} as typeof uniqueWriterOptions;
+async function openUniqueWriter(path: string, options: Partial<UniqueWriterOptions> = {}): Promise<Deno.File> {
+    const resolvedOptions = {...uniqueWriterOptions, ...options} as UniqueWriterOptions;
     const startTime = Date.now();
 
     do {
@@ -222,6 +229,18 @@ async function openOptionalReader(path: string): Promise<Deno.File | null> {
 }
 
 /**
+ * Extracts a clear path from a pattern.
+ * - /some/folder = /some/folder
+ * - /some/*.json = /some
+ * This method assumes that `extended` and `globstar` are `false`
+ *
+ * @see https://doc.deno.land/https/deno.land/std@0.100.0/path/glob.ts#globToRegExp
+ */
+function pathFromPattern(pattern: string): string {
+    return pattern.replace(/\/[\/]*[*?{}[\]][\s\S]*$/, '');
+}
+
+/**
  * Represents a filesystem event.
  * You usually get this from watchFs.
  */
@@ -235,14 +254,16 @@ const watchFsOptions = {
     waitTime: 100,
 };
 
+type WatchFsOptions = typeof watchFsOptions & GlobOptions;
+
 /**
  * Watches the given glob pattern for changes.
  * Events are queued and will be emitted if nothing happened with a file after waitTime.
  */
-async function* watchFs(pathPattern: string, options: Partial<typeof watchFsOptions> = {}): AsyncIterable<DelayedFsEvent> {
-    const resolvedOptions = {...watchFsOptions, ...options} as typeof watchFsOptions;
-    const highestClearPath = pathPattern.replace(/\/[\/]*[*?][\s\S]*$/, '');
-    const pathRegExp = globToRegExp(pathPattern);
+async function* watchFs(pathPattern: string, options: Partial<WatchFsOptions> = {}): AsyncIterable<DelayedFsEvent> {
+    const resolvedOptions = {...watchFsOptions, ...options} as WatchFsOptions;
+    const highestClearPath = pathFromPattern(pathPattern);
+    const pathRegExp = globToRegExp(pathPattern, resolvedOptions);
 
     const events = new Map<string, DelayedFsEvent>();
     let nextEventPromise = deferred();
