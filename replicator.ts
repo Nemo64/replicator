@@ -90,11 +90,10 @@ for (const [sourceName, source] of Object.entries(config.sources)) {
         return Promise.all(updates);
     });
 
-    for await (const updates of updateIterator) {
+    for await (const update of updateIterator) {
         console.log(
-            'updated',
-            updates.map(update => update.sourceId).filter((uri, index, list) => index === list.indexOf(uri)),
-            updates.map(update => update.viewId).filter((uri, index, list) => index === list.indexOf(uri)),
+            `process "${update.sourceId}" in ${update.duration} ms`,
+            update.viewUpdates.map(view => view.viewId),
         );
     }
 }

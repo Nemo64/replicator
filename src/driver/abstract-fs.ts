@@ -1,11 +1,11 @@
 import {deferred, delay, MuxAsyncIterator, pooledMap} from "https://deno.land/std@0.100.0/async/mod.ts";
 import {ensureDir} from "https://deno.land/std@0.100.0/fs/ensure_dir.ts"; // importing fs/mod.ts requires --unstable
 import {expandGlob, ExpandGlobOptions} from "https://deno.land/std@0.100.0/fs/expand_glob.ts"; // importing fs/mod.ts requires --unstable
-import {globToRegExp, GlobOptions} from "https://deno.land/std@0.100.0/path/glob.ts";
+import {GlobOptions, globToRegExp} from "https://deno.land/std@0.100.0/path/glob.ts";
 import {basename, dirname, join, relative} from "https://deno.land/std@0.100.0/path/mod.ts";
 
 import {parse, PatternFunction, PatternObject} from "../pattern.ts";
-import {Driver, DriverContext, SourceChangeHandler, ViewUpdate} from "./driver.d.ts";
+import {Driver, DriverContext, SourceChangeHandler, Update, ViewUpdate} from "./driver.d.ts";
 
 /**
  * This is a list of all files that are currently being written to.
@@ -42,7 +42,7 @@ export default abstract class AbstractFs implements Driver {
         return this.id(data) as string;
     }
 
-    startWatching(changeHandler: SourceChangeHandler): AsyncIterable<ViewUpdate[]> {
+    startWatching(changeHandler: SourceChangeHandler): AsyncIterable<Update> {
         const pathPattern = join(this.basePath, this.buildId({}));
 
         const eventIterator = new MuxAsyncIterator<{ path: string }>();
@@ -52,6 +52,9 @@ export default abstract class AbstractFs implements Driver {
 
         // TODO the pooledMap implementation preserves order which could lead to congestion
         return pooledMap(5, eventIterator, async ({path: nextPath}) => {
+            const eventStart = performance.now();
+            const sourceId = relative(this.basePath, nextPath);
+            const viewUpdates = [] as ViewUpdate[];
             try {
                 const prevPath = `${dirname(nextPath)}/.${basename(nextPath)}.shadow`;
 
@@ -64,7 +67,8 @@ export default abstract class AbstractFs implements Driver {
                 const nextTime = nextStat?.mtime ?? null;
                 // @ts-ignore greater than with undefined is false, which is expected here
                 if (prevTime?.getTime() > nextTime?.getTime() && prevTime?.getTime() > this.configTime.getTime()) {
-                    return [];
+                    const duration = performance.now() - eventStart;
+                    return {sourceId, viewUpdates, duration};
                 }
 
                 const [nextData, prevData] = await Promise.all([
@@ -72,13 +76,15 @@ export default abstract class AbstractFs implements Driver {
                     this.readSourceFile(prevPath),
                 ]);
 
-                const sourceId = relative(this.basePath, nextPath);
-                const viewUpdates = await changeHandler({sourceId, prevData, nextData, prevTime, nextTime});
+                viewUpdates.push(...await changeHandler({sourceId, prevData, nextData, prevTime, nextTime}));
                 await Deno.copyFile(nextPath, prevPath);
-                return viewUpdates;
+
+                const duration = performance.now() - eventStart;
+                return {sourceId, viewUpdates, duration};
             } catch (e) {
                 console.error(e);
-                return [];
+                const duration = performance.now() - eventStart;
+                return {sourceId, viewUpdates, duration};
             }
         });
     }
@@ -148,14 +154,14 @@ export default abstract class AbstractFs implements Driver {
                 await Deno.remove(tmpViewPath); // delete the lock last
             }
         } catch (e) {
-            tmpViewFile && Deno.remove(tmpViewPath);
+            tmpViewFile && await Deno.remove(tmpViewPath);
             throw e;
         } finally {
             tmpViewFile && Deno.close(tmpViewFile.rid);
             viewFile && Deno.close(viewFile.rid);
         }
 
-        return {sourceId, viewId: relative(this.basePath, viewPath)};
+        return {viewId: relative(this.basePath, viewPath)};
     }
 
     /**

@@ -11,10 +11,15 @@ export interface SourceChange {
 export type SourceChangeHandler = (change: SourceChange) => Promise<ViewUpdate[]>
 
 export interface ViewUpdate {
-    readonly sourceId: string;
     readonly viewId: string;
     readonly viewEntries?: number;
     readonly viewSize?: number;
+}
+
+export interface Update {
+    readonly sourceId: string;
+    readonly viewUpdates: ViewUpdate[];
+    readonly duration: number;
 }
 
 export interface DriverContext {
@@ -33,7 +38,7 @@ export interface Driver {
      * The driver must make sure that the old data stays available until the handler's Promise resolves.
      * After that, the handler must make sure that the new data stays available until the next change.
      */
-    startWatching(handler: SourceChangeHandler): AsyncIterable<ViewUpdate[]>
+    startWatching(handler: SourceChangeHandler): AsyncIterable<Update>
 
     /**
      * Updates a view file.
