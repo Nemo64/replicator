@@ -43,10 +43,6 @@ for (const [sourceName, source] of Object.entries(config.sources)) {
         const updates: Promise<ViewUpdate>[] = [];
         const configChanged = change.prevTime && change.prevTime.getTime() < configTime.getTime();
 
-        if (!change.nextData) {
-            return Promise.resolve([]);
-        }
-
         for (const view of views) {
             const prevEntriesById = new Map<string, Set<string>>();
             const nextEntriesById = new Map<string, Map<string, PatternObject>>();
