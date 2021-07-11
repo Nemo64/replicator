@@ -22,6 +22,12 @@ Go ahead and play around with the source files.
 deno run --watch --unstable --allow-read --allow-write ../../replicator.ts --configFile replicator-db.json
 ```
 
+I also included a script to generate calendar entries
+
+```bash
+deno run --allow-write generate.ts
+```
+
 ## Folder Structure
 
 Replicator does not specify a project structure for you.
