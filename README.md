@@ -1,27 +1,13 @@
-# ReplicatorDB - The noDB storage solution
+# Replicator - The noDB storage solution
 
-This is a concept/prototype.
+This is a concept/prototype. Please give me feedback.
 
-The basic idea is to replace your traditional SQL or noSQL database with plain-old files.
+The idea is to replace your traditional SQL or noSQL database with plain-old files.
 The is achieved by continuously keeping your queries answered
 instead of preparing your data for on-the-fly answering. 
 
-This project then aggregates files (using filesystem events) into different view copies,
+Replicator then aggregates files (using filesystem events) into different view copies,
 so you can build efficient eventually-consistent aggregation/list views for your users.
-
-The aim here is to be an extension to the native filesystem or block storage (s3),
-and not a completely new way how to interact with data, like most databases.
-That way, this project can profit off of decades of persistence experience.
-
-## what is this project about?
-
-**This project is about solving the "multiple records/files" issue of filesystems.**
-
-The idea is to eventually consistently aggregate the contents of large source files, based on config files.
-Those aggregations will then be stored under different filename schemes based on the content of the aggregated file.
-For example usernames, groups, dates, alphabetical ~ whatever you would usually use a secondary index in your database for.
-That way, your client application only needs to know the views filename scheme
-and can download aggregations, usually without an application layer (besides a web server like nginx).
 
 That does mean we are duplicating a lot of data, but the list of advantages is long:
 
@@ -30,13 +16,16 @@ That does mean we are duplicating a lot of data, but the list of advantages is l
 - The linux page cache can improve delivery performance without any configuration
 - Your hoster can probably deliver stored files very efficiently
 - Replicating and safely storing files is a known and solved issue
-- Most programming environments can handle files well
-- Shared and exclusive locking is also usually supported (~[usually](https://github.com/denoland/deno/issues/11192))
+- Most programming environments can handle files well, no integration needed.
 
+The aim is to be an extension to the native filesystem or block storage (s3),
+and not a completely new way how to interact with data, like most databases.
+That way, this project can profit off of decades of persistence experience (raid, SAM, nfs, rsync, mounts etc)
+and existing deliver systems (apache, nginx, CDN's etc) without much integration.
 
 ## calendar example
 
-This example is available in the [examples/](examples) folder.
+This example is available in the [examples/](examples) folder to play around with.
 
 In a database, you'd usually normalize the data down to basic calendar information and appointments. But for
 replicator-db, you want to store as much related data in a single file as possible.
