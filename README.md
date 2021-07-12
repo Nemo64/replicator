@@ -57,19 +57,17 @@ But you instantly have different access patterns that you can't easily solve wit
 The replicator-db will duplicate the data (on fs-events) into different structures.
 
 - The main calendar files live in `source/6ff6255b-45b5-4895-8d59-50fa60663cfc.json`
-- Replicator-db could store the uuid's, access rights and names of calendars in `lists/user+1@example.com.json`
-- Replicator-db could store appointments monthly in `appointments/user+1@example.com/2021-07.json`
+- Replicator can store the uuid's, access rights and names of calendars in `views/user+1@example.com/calendars.json`
+- Replicator can store appointments monthly in `views/user+1@example.com/2021-07.json`
 
-If your client application knows these naming schemes, it can just request those files without an application layer on
-the server. Some clever web-server/cdn configuration can handle access rights to those folders using jwt authentication
-for example.
+If your client application knows these naming schemes, it can just request those files without an application layer.
+Use jwt claims to handle access rights if needed, and you are done.
 
 ### database configuration
 
 ```json5
 // replicator-db.json
 {
-    "version": "0.0.1",
     "sources": {
         "calendars": {
             "type": "json-fs",
@@ -93,7 +91,7 @@ for example.
             // the format is what is actually in a view-item
             "format": {
                 "name": "{source.name}",
-                "privilege": "{source.shared_with|filter(.user == matrix.user)|map(.privilege)|pick(0)|default('owner')}"
+                "privilege": "{source.shared_with|filter(.user == matrix.user)|map(.privilege)|pick|default('owner')}"
             }
         },
         {
@@ -112,7 +110,7 @@ for example.
             "format": {
                 "calendar": {
                     "name": "{source.name}",
-                    "privilege": "{source.shared_with|filter(.user == matrix.user)|map(.privilege)|pick(0)|default('owner')}"
+                    "privilege": "{source.shared_with|filter(.user == matrix.user)|map(.privilege)|pick|default('owner')}"
                 },
                 "name": "{matrix.appointment.name}",
                 "time": "{matrix.appointment.time}"
@@ -141,9 +139,8 @@ Filters can be accessed and chained using `|filter_name`. Available filters are:
   It is also possible to put filters within the map filter.
 - `|strftime('%Y-%m-%d')` allows to format a date using the c strftime syntax.
 - `|default('value')` replaces `null` with the specified value.
-- `|length` tells the length of a list.
-- `|pick(0)` returns a single item from the given list based on the argument or `null` if the list is empty.
-  If the argument is a negative number, it will select an item from the end
+- `|pick(0)` returns a single item from the given list based on the argument or `null` if the item does not exist.
+  If the argument is a negative number, it will select an item from the end of an array.
 
 ### generated files
 
@@ -160,7 +157,7 @@ Filters can be accessed and chained using `|filter_name`. Available filters are:
     {
         "_source": "2732158b-aaa3-4951-aa40-6e9cbac328d0.json",
         "name": "Work events",
-        "privilege": "owner"
+        "privilege": "read-only"
     },
     {
         "_source": "67763fd6-13df-4a9b-967b-88773380dea7.json",
@@ -171,7 +168,7 @@ Filters can be accessed and chained using `|filter_name`. Available filters are:
 ```
 
 ```json5
-// views/user+1@example.com/appointments/2021-07.json
+// views/user+1@example.com/2021-07.json
 [
     {
         "_source": "6ff6255b-45b5-4895-8d59-50fa60663cfc.json",
@@ -187,19 +184,19 @@ Filters can be accessed and chained using `|filter_name`. Available filters are:
     },
     {
         "_source": "2732158b-aaa3-4951-aa40-6e9cbac328d0.json",
-        "calendar": {"name": "Work events", "privilege": "owner"},
+        "calendar": {"name": "Work events", "privilege": "read-only"},
         "time": "2021-07-05T10:00:00+02:00",
         "name": "Morning Meeting"
     },
     {
         "_source": "2732158b-aaa3-4951-aa40-6e9cbac328d0.json",
-        "calendar": {"name": "Work events", "privilege": "owner"},
+        "calendar": {"name": "Work events", "privilege": "read-only"},
         "time": "2021-07-12T10:00:00+02:00",
         "name": "Morning Meeting"
     },
     {
         "_source": "2732158b-aaa3-4951-aa40-6e9cbac328d0.json",
-        "calendar": {"name": "Work events", "privilege": "owner"},
+        "calendar": {"name": "Work events", "privilege": "read-only"},
         "time": "2021-07-26T10:00:00+02:00",
         "name": "Morning Meeting"
     }
