@@ -6,7 +6,7 @@ The idea is to replace your traditional SQL or noSQL database with plain-old fil
 The is achieved by continuously keeping your queries answered
 instead of preparing your data for on-the-fly answering. 
 
-Replicator then aggregates files (using filesystem events) into different view copies,
+Replicator aggregates files (using filesystem events) into different view copies,
 so you can build efficient eventually-consistent aggregation/list views for your users.
 
 That does mean we are duplicating a lot of data, but the list of advantages is long:

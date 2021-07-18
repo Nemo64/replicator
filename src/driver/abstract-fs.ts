@@ -68,7 +68,8 @@ export default abstract class AbstractFs implements Driver {
                 const prevTime = prevStat?.mtime ?? null;
                 const nextTime = nextStat?.mtime ?? null;
                 // @ts-ignore greater than with undefined is false, which is expected here
-                if (prevTime?.getTime() >= nextTime?.getTime() && prevTime?.getTime() >= this.configTime.getTime()) {
+                const fileUntouched = prevTime?.getTime() >= nextTime?.getTime() && prevTime?.getTime() >= this.configTime.getTime();
+                if (fileUntouched) {
                     const duration = performance.now() - eventStart;
                     return {sourceId, kind, viewUpdates, duration};
                 }

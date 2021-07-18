@@ -39,6 +39,8 @@ for (const [sourceName, source] of Object.entries(config.sources)) {
             format: parseStructure(view.format) as unknown as (data: FormatContext) => PatternObject,
         }));
 
+    // TODO parse all views before starting
+
     const updateIterator = driver.startWatching(change => {
         const updates: Promise<ViewUpdate>[] = [];
         const configChanged = change.prevTime && change.prevTime.getTime() < configTime.getTime();
