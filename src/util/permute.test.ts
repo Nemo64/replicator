@@ -1,5 +1,5 @@
-import {assertEquals} from "https://deno.land/std@0.100.0/testing/asserts.ts";
-import {permuteMatrix} from "./permute.ts";
+import {expect, test} from "@jest/globals";
+import {permuteMatrix} from "./permute";
 
 const cases = [
     {
@@ -49,12 +49,12 @@ const cases = [
             {key1: 2, key2: 4, key3: 5},
             {key1: 2, key2: 4, key3: 6},
         ],
-    }
+    },
 ];
 
 for (const {structure, expected} of cases) {
-    Deno.test(`permute ${JSON.stringify(structure)}`, () => {
-        assertEquals(Array.from(permuteMatrix(structure as Record<string, number[]>)), expected);
+    test(`permute ${JSON.stringify(structure)}`, () => {
+        expect(Array.from(permuteMatrix(structure as Record<string, number[]>))).toEqual(expected);
     });
 }
 

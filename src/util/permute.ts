@@ -12,7 +12,7 @@ export function permuteMatrix<T>(matrix: Record<string, Iterable<T>>): Iterable<
 
 function* permute<T>(matrix: Array<[string, Iterable<T>]>, offset: number): Iterable<Record<string, T>> {
     if (matrix.length <= offset) {
-        yield Object.create(null);
+        yield {};
         return;
     }
 

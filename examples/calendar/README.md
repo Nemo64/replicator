@@ -18,14 +18,14 @@ This command will start the replicator daemon which will watch the source folder
 
 Go ahead and play around with the source files.
 
-```bash
-deno run --watch --unstable --allow-read --allow-write ../../replicator.ts --configFile replicator-db.json
+```sh
+npm start examples/calendar/replicator.json
 ```
 
-I also included a script to generate calendar entries
+To generate some calendars, use the generate command
 
-```bash
-deno run --allow-write generate.ts
+```sh
+node generate.js
 ```
 
 ## Folder Structure

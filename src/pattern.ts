@@ -1,6 +1,6 @@
 // @ts-ignore import not detected by php storm
-import moo from "https://esm.sh/moo@0.5.1";
-import strftime from "./strftime.ts";
+import * as moo from "moo";
+import strftime from "./util/strftime";
 
 export type PatternData = string | number | boolean | null | PatternData[] | PatternObject;
 // deno-lint-ignore no-empty-interface https://stackoverflow.com/a/45999529/1973256
@@ -55,7 +55,19 @@ const filters: Record<string, PatternFunction> = {
         }
 
         return strftime(new Date(data['']), formatStr);
-    }
+    },
+    slice(data, startPattern?: PatternFunction, endPattern?: PatternFunction) {
+        if (typeof data[''] !== 'string' && !Array.isArray(data[''])) {
+            return null;
+        }
+
+        const start = startPattern ? startPattern(data) : undefined;
+        const end = endPattern ? endPattern(data) : undefined;
+        return data[''].slice(
+            typeof start === 'number' ? start : undefined,
+            typeof end === 'number' ? end : undefined,
+        );
+    },
 };
 
 const patternLexer = moo.states({

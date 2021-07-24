@@ -1,5 +1,5 @@
-import {assertEquals} from "https://deno.land/std@0.100.0/testing/asserts.ts";
-import {parse, PatternData} from "./pattern.ts";
+import {expect, test} from "@jest/globals";
+import {parse} from "./pattern";
 
 const data = {
     person: {
@@ -71,7 +71,7 @@ const cases = [
 ];
 
 for (const {pattern, expected} of cases) {
-    Deno.test(`pattern "${pattern}"`, () => {
-        assertEquals(parse(pattern)(data as any), expected);
+    test(`pattern "${pattern}"`, () => {
+        expect(parse(pattern)(data as any)).toEqual(expected);
     });
 }

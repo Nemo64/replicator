@@ -1,32 +1,36 @@
-import {PatternObject} from "../pattern.ts";
+import {PatternObject} from "../pattern";
 
 export interface SourceChange {
-    readonly sourceId: string;
-    readonly prevTime: Date | null,
-    readonly nextTime: Date | null,
-    readonly prevData: PatternObject | null;
-    readonly nextData: PatternObject | null;
+    sourceId: string;
+    prevTime: Date | null,
+    nextTime: Date | null,
+    prevData: PatternObject | null;
+    nextData: PatternObject | null;
 }
 
-export type SourceChangeHandler = (change: SourceChange) => Promise<ViewUpdate[]>
+export type SourceChangeHandler = (change: SourceChange) => Promise<ChangeResult>
+
+export interface ChangeResult {
+    viewUpdates: ViewUpdate[];
+    computeDuration: number;
+}
 
 export interface ViewUpdate {
-    readonly viewId: string;
-    readonly viewEntries?: number;
-    readonly viewSize?: number;
+    viewId: string;
+    viewEntries?: number;
+    viewSize?: number;
 }
 
-export interface Update {
-    readonly sourceId: string;
-    readonly kind: string;
-    readonly viewUpdates: ViewUpdate[];
-    readonly duration: number;
+export interface Update extends ChangeResult {
+    type: 'add' | 'change' | 'unlink';
+    sourceId: string;
+    duration: number;
 }
 
 export interface DriverContext {
-    readonly configPath: string;
-    readonly configTime: Date;
-    readonly concurrency: number;
+    configPath: string;
+    configTime: Date;
+    concurrency: number;
 }
 
 export interface Driver {
@@ -52,4 +56,4 @@ export interface Driver {
 /**
  * List of driver constructors.
  */
-export type DriverList = Record<string, new (options: PatternObject, context: DriverContext) => Driver>;
+export type DriverList = Record<string, new (options: Record<string, any>, context: DriverContext) => Driver>;

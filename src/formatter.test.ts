@@ -1,5 +1,5 @@
-import {assertEquals, assertNotStrictEquals} from "https://deno.land/std@0.100.0/testing/asserts.ts";
-import {parseStructure} from "./formatter.ts";
+import {expect, test} from "@jest/globals";
+import {parseStructure} from "./formatter";
 
 const cases = [
     [
@@ -30,10 +30,10 @@ const cases = [
 ];
 
 for (const [structure, data, expected] of cases) {
-    Deno.test(`format ${JSON.stringify(structure)}`, () => {
+    test(`format ${JSON.stringify(structure)}`, () => {
         const result = parseStructure(structure as any)(data as any);
-        assertEquals(result, expected);
-        assertNotStrictEquals(result, structure);
+        expect(result).toEqual(expected);
+        expect(result).not.toBe(structure);
     });
 }
 

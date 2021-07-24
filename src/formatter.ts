@@ -1,4 +1,4 @@
-import {parse, PatternData, PatternFunction, PatternObject} from "./pattern.ts";
+import {parse, PatternData, PatternFunction, PatternObject} from "./pattern";
 
 export type ParsedPatternData =
     string
@@ -28,7 +28,11 @@ function _parseStructure(structure: PatternData): ParsedPatternData {
     }
 
     if (structure !== null && typeof structure === 'object') {
-        return Object.fromEntries(Object.entries(structure).map(([key, value]) => [key, _parseStructure(value)]));
+        const result = {} as Record<string, ParsedPatternData>;
+        for (const key in structure) {
+            result[key] = _parseStructure(structure[key]);
+        }
+        return result;
     }
 
     return structure;
@@ -44,8 +48,12 @@ function _executeStructure(structure: ParsedPatternData, data: PatternObject): P
     }
 
     if (structure !== null && typeof structure === 'object') {
-        return Object.fromEntries(Object.entries(structure).map(([key, value]) => [key, _executeStructure(value, data)]));
+        const result = {} as Record<string, PatternData>;
+        for (const key in structure) {
+            result[key] = _executeStructure(structure[key], data);
+        }
+        return result;
     }
 
-    return structure;
+    return structure as unknown as PatternData;
 }

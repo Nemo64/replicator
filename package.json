@@ -1,0 +1,48 @@
+{
+    "name": "replicator",
+    "description": "Copies and merges source files into view files. Can replace databases in some cases.",
+    "keywords": [
+        "aggregate",
+        "daemon",
+        "database",
+        "event",
+        "json",
+        "nosql",
+        "view"
+    ],
+    "license": "MIT",
+    "author": "Marco Pfeiffer <git@marco.zone>",
+    "main": "dist/replicator.js",
+    "bin": "dist/cli.js",
+    "files": [
+        "dist"
+    ],
+    "engines": {
+        "node": ">=14"
+    },
+    "scripts": {
+        "build": "rm -rf dist && tsc",
+        "check": "tsc --noEmit",
+        "start": "ts-node-dev --respawn src/cli.ts",
+        "test": "jest"
+    },
+    "dependencies": {
+        "ajv": "^8.6.2",
+        "ajv-formats": "^2.1.0",
+        "chokidar": "^3.5.2",
+        "glob-parent": "^5.1.2",
+        "moo": "^0.5.1",
+        "object-hash": "^2.2.0"
+    },
+    "devDependencies": {
+        "@types/glob-parent": "^5.1.1",
+        "@types/jest": "^26.0.24",
+        "@types/node": "^16.3.3",
+        "@types/object-hash": "^2.1.1",
+        "jest": "^27.0.6",
+        "ts-jest": "^27.0.3",
+        "ts-node": "^10.1.0",
+        "ts-node-dev": "^1.1.8",
+        "typescript": "^4.3.5"
+    }
+}

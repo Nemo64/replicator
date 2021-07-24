@@ -10,20 +10,15 @@ jobs:
 
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 10
     strategy:
       matrix:
-        deno-version: [ 1.x ]
-
+        node-version: [14.x, 16.x]
     steps:
-      - name: Git Checkout
-        uses: actions/checkout@v2
-
-      - name: Use Deno Version ${{ matrix.deno-version }}
-        uses: denoland/setup-deno@v1.0.0
+      - uses: actions/checkout@v2
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v2
         with:
-          deno-version: ${{ matrix.deno }}
-
-      - name: Run tests
-        run: deno test src
-
+          node-version: ${{ matrix.node-version }}
+      - run: npm install
+      - run: npm test

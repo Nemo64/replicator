@@ -1,5 +1,5 @@
-import {assertEquals} from "https://deno.land/std@0.100.0/testing/asserts.ts";
-import strftime from "./strftime.ts";
+import {expect, test} from "@jest/globals";
+import strftime from "./strftime";
 
 const cases = [
     {
@@ -27,8 +27,8 @@ const cases = [
 
 for (const {date, tests} of cases) {
     for (const [format, expected] of tests) {
-        Deno.test(`strftime ${format}`, () => {
-            assertEquals(strftime(date, format), expected);
+        test(`strftime ${format}`, () => {
+            expect(strftime(date, format)).toEqual(expected);
         });
     }
 }

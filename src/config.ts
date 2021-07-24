@@ -1,20 +1,20 @@
-import {DriverList} from "./driver/driver.d.ts";
-import {PatternObject} from "./pattern.ts";
+import {DriverList} from "./driver/driver";
+import {PatternObject} from "./pattern";
 
 export interface Config {
     readonly version: string;
-    readonly sources: Record<string, LocationConfig>;
+    readonly sources: Record<string, DriverConfig>;
     readonly views: ViewConfig[];
 }
 
 export interface ViewConfig {
     readonly source: string;
     readonly matrix: Record<string, string | string[]>;
-    readonly target: LocationConfig;
+    readonly target: DriverConfig;
     readonly format: PatternObject
 }
 
-export interface LocationConfig {
+export interface DriverConfig {
     readonly type: string;
 }
 
