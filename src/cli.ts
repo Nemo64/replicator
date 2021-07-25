@@ -1,9 +1,11 @@
 import {readFileSync, statSync} from "fs";
+import {performance} from "perf_hooks";
 import {cwd} from "process";
-import {Config, validate} from "./config";
-import {DriverContext} from "./driver/driver";
-import {drivers} from "./drivers";
-import {Replicator} from "./replicator";
+import {Config, Environment, parse} from "./config";
+import {sourceDrivers, targetDrivers} from "./drivers/list";
+import {SourceEvent} from "./drivers/types";
+import {AsyncMergeIterator} from "./util/async_merge_iterator";
+import {generateViews} from "./view";
 
 const [configFile] = process.argv.slice(2);
 if (!configFile) {
@@ -11,25 +13,45 @@ if (!configFile) {
 }
 
 const configPath = `${cwd()}/${configFile}`;
-const driverContext: DriverContext = {
+const environment: Environment = {
     configPath: configPath,
-    configTime: (statSync(configPath)).mtime ?? new Date,
-    concurrency: 8, // v8 has up to 8 worker threads
+    configTime: (statSync(configPath)).mtime,
+    sourceDrivers,
+    targetDrivers,
 };
 
-const config = JSON.parse(readFileSync(configPath, {encoding: 'utf8'})) as Config;
-validate({config, drivers});
+const config = parse(JSON.parse(readFileSync(configPath, {encoding: 'utf8'})) as Config, environment);
+const events = new AsyncMergeIterator<SourceEvent>();
 
-const replicator = new Replicator(config, driverContext);
-const updateIterator = replicator.start();
+for (const source of config.keys()) {
+    events.add(source.watch());
+}
 
 (async () => {
-    for await (const update of updateIterator) {
-        const compute = update.computeDuration.toFixed(2).padStart(6);
-        const total = update.duration.toFixed(2).padStart(6);
-        console.log(
-            `process "${update.sourceId}" (${update.type}) in ${compute} /${total} ms`,
-            update.viewUpdates.map(view => view.viewId),
-        );
+    for await (const event of events) {
+        const mappings = config.get(event.sourceDriver) ?? [];
+        const update = await event.sourceDriver.process(event, async change => {
+            const updates = [];
+            const viewIds = [];
+            const startTime = performance.now();
+
+            for (const mapping of mappings) {
+                for (const [viewId, entries] of generateViews(change, mapping)) {
+                    updates.push(mapping.target.update({viewId, trigger: change}, entries));
+                    viewIds.push(viewId);
+                }
+            }
+
+            const processTime = performance.now() - startTime;
+            await Promise.all(updates);
+            const updateTime = performance.now() - startTime - processTime;
+
+            return {...event, viewIds, processTime, updateTime};
+        });
+
+        console.log(update);
     }
-})();
+})().catch(e => {
+    console.error(e);
+    process.exit(1);
+});

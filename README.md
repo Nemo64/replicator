@@ -70,7 +70,7 @@ Use jwt claims to handle access rights if needed, and you are done.
 {
     "sources": {
         "calendars": {
-            "type": "json-fs",
+            "type": "filesystem",
             "path": "source/*.json"
         }
     },
@@ -85,7 +85,7 @@ Use jwt claims to handle access rights if needed, and you are done.
             // the target file is always a json array at root level
             // multiple source files and view definitions can write into the same target
             "target": {
-                "type": "json-fs",
+                "type": "filesystem",
                 "path": "views/{matrix.user}/calendars.json"
             },
             // the format is what is actually in a view-item
@@ -104,7 +104,7 @@ Use jwt claims to handle access rights if needed, and you are done.
             // multiple entries can have the same file target
             // this means 1 calender can add multiple appointments to the target file 
             "target": {
-                "type": "json-fs",
+                "type": "filesystem",
                 "path": "views/{matrix.user}/{matrix.appointment.time|strftime('%Y-%m')}.json"
             },
             "format": {

@@ -1,9 +1,9 @@
 {
     "sources": {
         "calendars": {
-            "type": "json-fs",
+            "type": "filesystem",
             "path": "source/*.json",
-            "schema": "schemas/source-calendar.json"
+            "format": {"type": "json", "schema": "schemas/source-calendar.json"}
         }
     },
     "views": [
@@ -13,9 +13,9 @@
                 "user": "{source.shared_with|map(.user)|prepend(source.owner)}"
             },
             "target": {
-                "type": "json-fs",
+                "type": "filesystem",
                 "path": "views/{matrix.user}/calendars.json",
-                "schema": "schemas/view-calendars.json"
+                "format": {"type": "json", "schema": "schemas/view-calendars.json"}
             },
             "format": {
                 "name": "{source.name}",
@@ -29,9 +29,9 @@
                 "appointment": "{source.appointments}"
             },
             "target": {
-                "type": "json-fs",
+                "type": "filesystem",
                 "path": "views/{matrix.user}/{matrix.appointment.time|strftime('%Y-%m')}.json",
-                "schema": "schemas/view-appointments.json"
+                "format": {"type": "json", "schema": "schemas/view-appointments.json"}
             },
             "format": {
                 "calendar": {
