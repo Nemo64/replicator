@@ -1,4 +1,4 @@
-import {DriverContext, Source, SourceConstructor, Target, TargetConstructor} from "./drivers/types";
+import {DriverContext, FormatConstructor, Source, SourceConstructor, Target, TargetConstructor} from "./drivers/types";
 import {parseStructure} from "./formatter";
 import {PatternObject} from "./pattern";
 
@@ -19,19 +19,9 @@ interface ViewConfig {
     readonly format: PatternObject;
 }
 
-export interface Environment extends DriverContext {
-    sourceDrivers: Record<string, SourceConstructor>;
-    targetDrivers: Record<string, TargetConstructor>;
-}
-
 interface FormatContext {
     source: PatternObject;
     matrix: PatternObject;
-}
-
-export interface Mapping {
-    driver: Source,
-    views: ViewMapping[],
 }
 
 export interface ViewMapping {
@@ -40,7 +30,7 @@ export interface ViewMapping {
     format: (data: FormatContext) => PatternObject,
 }
 
-export function validate(config: Config, environment: Environment) {
+export function validate(config: Config, context: DriverContext) {
     const missingSourceNames = config.views
         .map(view => view.source)
         .filter(sourceName => !config.sources.hasOwnProperty(sourceName))
@@ -51,22 +41,22 @@ export function validate(config: Config, environment: Environment) {
 
     const missingDrivers = Object.values(config.sources)
         .map(source => source.type)
-        .filter(type => !environment.sourceDrivers.hasOwnProperty(type))
+        .filter(type => !context.drivers.source.hasOwnProperty(type))
         .filter((sourceName, index, array) => index === array.indexOf(sourceName));
     if (missingDrivers.length > 0) {
         throw new Error(`The driver(s) "${missingDrivers.join(', ')}" is/are not available.`);
     }
 }
 
-export function parse(config: Config, environment: Environment): Map<Source, ViewMapping[]> {
-    validate(config, environment);
+export function parse(config: Config, context: DriverContext): Map<Source, ViewMapping[]> {
+    validate(config, context);
 
     const result = new Map;
     for (const sourceName in config.sources) {
         const source = config.sources[sourceName];
-        const sourceDriver = new environment.sourceDrivers[source.type](source, environment);
+        const sourceDriver = new context.drivers.source[source.type](source, context);
         const viewMappings = config.views.filter(view => view.source === sourceName).map(view => ({
-            target: new environment.targetDrivers[view.target.type](view.target, environment),
+            target: new context.drivers.source[view.target.type](view.target, context),
             matrix: parseStructure(view.matrix) as unknown as (data: FormatContext) => Record<string, PatternObject[]>,
             format: parseStructure(view.format) as unknown as (data: FormatContext) => PatternObject,
         }));

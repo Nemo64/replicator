@@ -1,9 +1,9 @@
 import {readFileSync, statSync} from "fs";
 import {performance} from "perf_hooks";
 import {cwd} from "process";
-import {Config, Environment, parse} from "./config";
-import {sourceDrivers, targetDrivers} from "./drivers/list";
-import {SourceEvent} from "./drivers/types";
+import {Config, parse} from "./config";
+import {drivers} from "./drivers/lists";
+import {DriverContext, SourceEvent} from "./drivers/types";
 import {AsyncMergeIterator} from "./util/async_merge_iterator";
 import {generateViews} from "./view";
 
@@ -13,11 +13,10 @@ if (!configFile) {
 }
 
 const configPath = `${cwd()}/${configFile}`;
-const environment: Environment = {
+const environment: DriverContext = {
     configPath: configPath,
     configTime: (statSync(configPath)).mtime,
-    sourceDrivers,
-    targetDrivers,
+    drivers,
 };
 
 const config = parse(JSON.parse(readFileSync(configPath, {encoding: 'utf8'})) as Config, environment);

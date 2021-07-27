@@ -3,10 +3,9 @@ import {constants as fs, createReadStream} from "fs";
 import {copyFile, stat} from "fs/promises";
 import * as globParent from "glob-parent";
 import {Stats} from "node:fs";
-import {basename, dirname, join, relative} from "path";
+import {basename, dirname, extname, join, relative} from "path";
 import {AsyncMapQueue} from "../util/async_map_queue";
-import {Format, formats} from "./format";
-import {ChangeHandler, DriverContext, Source, SourceEvent} from "./types";
+import {ChangeHandler, DriverContext, Format, Source, SourceEvent} from "./types";
 
 export class FilesystemSource implements Source {
     private readonly path: string;
@@ -15,17 +14,17 @@ export class FilesystemSource implements Source {
 
     constructor(options: Record<string, any>, context: DriverContext) {
         if (typeof options.path !== 'string') {
-            throw new Error(`Filesystem sources require a path, got ${options.path}`);
+            throw new Error(`Filesystem sources require a path, got ${JSON.stringify(options.path)}`);
         }
 
-        const format = options?.format?.type as string ?? 'json';
-        if (!formats.hasOwnProperty(format)) {
-            throw new Error(`Format ${format} is unknown`);
+        const format = options?.format?.type || extname(options.path);
+        if (typeof format !== 'string' || !context.drivers.format.hasOwnProperty(format)) {
+            throw new Error(`Format ${JSON.stringify(format)} is unknown`);
         }
 
         this.path = join(dirname(context.configPath), options.path);
         this.root = globParent(this.path);
-        this.format = new formats[format](options?.format ?? {});
+        this.format = new context.drivers.format[format](options?.format ?? {}, context);
     }
 
     watch(): AsyncIterable<SourceEvent> {
@@ -36,15 +35,21 @@ export class FilesystemSource implements Source {
         let ready = false;
         watcher.on("ready", () => ready = true);
 
-        watcher.on('add', async (path, stats) => {
+        watcher.on("add", async (path, stats) => {
             if (!ready && !await this.hasChanged(path, stats)) {
                 return;
             }
 
             queue.add(path, {type: "add", sourceId: this.id(path), sourceDriver: this});
         });
-        watcher.on('change', path => queue.add(path, {type: "change", sourceId: this.id(path), sourceDriver: this}));
-        watcher.on('unlink', path => queue.add(path, {type: "remove", sourceId: this.id(path), sourceDriver: this}));
+
+        watcher.on("change", path => {
+            queue.add(path, {type: "change", sourceId: this.id(path), sourceDriver: this});
+        });
+
+        watcher.on("unlink", path => {
+            queue.add(path, {type: "remove", sourceId: this.id(path), sourceDriver: this});
+        });
 
         return queue;
     }

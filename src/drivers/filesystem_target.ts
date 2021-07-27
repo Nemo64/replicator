@@ -1,9 +1,8 @@
 import {createReadStream, createWriteStream} from "fs";
 import {FileHandle, mkdir, open, rename, rm, rmdir, stat} from "fs/promises";
-import {basename, dirname, join, relative} from "path";
+import {basename, dirname, extname, join, relative} from "path";
 import {parse, PatternFunction, PatternObject} from "../pattern";
-import {Format, formats} from "./format";
-import {DriverContext, Target, TargetUpdate} from "./types";
+import {DriverContext, Format, Target, TargetUpdate} from "./types";
 import globParent = require("glob-parent");
 
 export class FilesystemTarget implements Target {
@@ -13,18 +12,18 @@ export class FilesystemTarget implements Target {
 
     constructor(options: Record<string, any>, context: DriverContext) {
         if (typeof options.path !== 'string') {
-            throw new Error(`Filesystem sources require a path, got ${options.path}`);
+            throw new Error(`Filesystem targets require a path, got ${JSON.stringify(options.path)}`);
         }
 
-        const format = options?.format?.type as string ?? 'json';
-        if (!formats.hasOwnProperty(format)) {
-            throw new Error(`Format ${format} is unknown`);
+        const format = options?.format?.type || extname(options.path);
+        if (typeof format !== 'string' || !context.drivers.format.hasOwnProperty(format)) {
+            throw new Error(`Format ${JSON.stringify(format)} is unknown`);
         }
 
         const path = join(dirname(context.configPath), options.path);
         this.root = globParent(path);
         this.path = parse(relative(this.root, path));
-        this.format = new formats[format](options?.format ?? {});
+        this.format = new context.drivers.format[format](options?.format ?? {}, context);
     }
 
     id(data: PatternObject): string {
@@ -61,19 +60,21 @@ export class FilesystemTarget implements Target {
     }
 }
 
-async function deleteEmptyDirs(root: string, path: string): Promise<void> {
+async function deleteEmptyDirs(root: string, path: string): Promise<boolean> {
     if (!path.startsWith(root)) {
-        throw new Error(`The given path "${path}" is not within "${root}"`);
+        throw new Error(`The given path ${JSON.stringify(path)} is not within ${JSON.stringify(root)}`);
     }
 
     try {
         while ((path = dirname(path)).length > root.length) {
             await rmdir(path);
         }
+        return true;
     } catch (e) {
         if (e?.code !== 'ENOTEMPTY') {
             throw e;
         }
+        return false;
     }
 }
 
