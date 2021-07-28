@@ -36,11 +36,9 @@ export class FilesystemSource implements Source {
         watcher.on("ready", () => ready = true);
 
         watcher.on("add", async (path, stats) => {
-            if (!ready && !await this.hasChanged(path, stats)) {
-                return;
+            if (ready || await this.hasChanged(path, stats)) {
+                queue.add(path, {type: "add", sourceId: this.id(path), sourceDriver: this});
             }
-
-            queue.add(path, {type: "add", sourceId: this.id(path), sourceDriver: this});
         });
 
         watcher.on("change", path => {

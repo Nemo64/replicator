@@ -1,9 +1,9 @@
-import {Environment} from "../config";
 import {FilesystemSource} from "./filesystem_source";
 import {FilesystemTarget} from "./filesystem_target";
 import {JsonFormat} from "./json_format";
+import {DriverContext} from "./types";
 
-export const drivers: Environment["drivers"] = {
+export const drivers: DriverContext["drivers"] = {
     source: {
         filesystem: FilesystemSource,
     },

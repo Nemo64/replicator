@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 import {readFileSync, statSync} from "fs";
 import {performance} from "perf_hooks";
 import {cwd} from "process";
