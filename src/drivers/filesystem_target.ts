@@ -25,7 +25,7 @@ export class FilesystemTarget implements Target {
             throw new Error(`Filesystem targets require a path, got ${JSON.stringify(options.path)}`);
         }
 
-        const format = options?.format?.type || extname(options.path).slice(1);
+        const format = options?.format || extname(options.path).slice(1);
         if (typeof format !== 'string' || !context.drivers.format.hasOwnProperty(format)) {
             throw new Error(`Format ${JSON.stringify(format)} is unknown`);
         }
@@ -33,7 +33,7 @@ export class FilesystemTarget implements Target {
         const path = join(dirname(context.configPath), options.path);
         this.root = globParent(path);
         this.path = parse(relative(this.root, path));
-        this.format = new context.drivers.format[format](options?.format ?? {}, context);
+        this.format = new context.drivers.format[format](options, context);
     }
 
     id(data: any): string {
@@ -69,6 +69,7 @@ export class FilesystemTarget implements Target {
         } catch (e) {
             // TODO deleting a file before closing it probably does not work on windows
             rm(tmpPath).catch(e => console.error(e));
+            e.message = `Failed to update view ${JSON.stringify(path)} from source ${JSON.stringify(update.event.sourceId)}\n${e.message}`;
             throw e;
         } finally {
             file && file.close().catch(e => console.error(e));

@@ -37,26 +37,30 @@ for (const {source} of config.values()) {
             continue;
         }
 
-        const update = await mapping.source.process(event, async change => {
-            const updates = [];
-            const viewIds = [];
-            const startTime = performance.now();
+        try {
+            const update = await mapping.source.process(event, async change => {
+                const updates = [];
+                const viewIds = [];
+                const startTime = performance.now();
 
-            for (const viewMapping of mapping.views) {
-                for (const [viewId, entries] of generateViews(change, viewMapping)) {
-                    updates.push(viewMapping.target.update({viewId, event, entries}));
-                    viewIds.push(viewId);
+                for (const viewMapping of mapping.views) {
+                    for (const [viewId, entries] of generateViews(change, viewMapping)) {
+                        updates.push(viewMapping.target.update({viewId, event, entries}));
+                        viewIds.push(viewId);
+                    }
                 }
-            }
 
-            const processTime = performance.now() - startTime;
-            await Promise.all(updates);
-            const updateTime = performance.now() - startTime - processTime;
+                const processTime = performance.now() - startTime;
+                await Promise.all(updates);
+                const updateTime = performance.now() - startTime - processTime;
 
-            return {...event, viewIds, processTime, updateTime};
-        });
+                return {...event, viewIds, processTime, updateTime};
+            });
+            console.log(update);
+        } catch (e) {
+            console.error(e);
+        }
 
-        console.log(update);
     }
 })().catch(e => {
     console.error(e);

@@ -45,7 +45,7 @@ for (const {sourceId, original, expected, entries} of modifyCases) {
 
         const event = {type: "change", sourceId, sourceName: 'test'} as SourceEvent;
         const update = {event, viewId: '', entries};
-        await new JsonFormat({spaces: 0}).updateView(update, writable, readable);
+        await new JsonFormat({indention: 0}).updateView(update, writable, readable);
         expect(writable._write).toHaveBeenCalled();
     });
 }

@@ -4,6 +4,7 @@ import {copyFile, stat} from "fs/promises";
 import * as globParent from "glob-parent";
 import {Stats} from "node:fs";
 import {basename, dirname, extname, join, relative} from "path";
+import {performance} from "perf_hooks";
 import {AsyncMapQueue} from "../util/async_map_queue";
 import {ChangeHandler, DriverContext, Format, Source, SourceEvent} from "./types";
 
@@ -32,24 +33,28 @@ export class FilesystemSource implements Source {
             throw new Error(`Filesystem sources require a path, got ${JSON.stringify(options.path)}.`);
         }
 
-        const format = options?.format?.type || extname(options.path).slice(1);
+        const format = options?.format || extname(options.path).slice(1);
         if (typeof format !== 'string' || !context.drivers.format.hasOwnProperty(format)) {
             throw new Error(`Format ${JSON.stringify(format)} is unknown. You might want to specify the format option explicitly.`);
         }
 
         this.path = join(dirname(context.configPath), options.path);
         this.root = globParent(this.path);
-        this.format = new context.drivers.format[format](options?.format ?? {}, context);
+        this.format = new context.drivers.format[format](options, context);
         this.name = options.name;
     }
 
     watch(): AsyncIterable<SourceEvent> {
         const queue = new AsyncMapQueue<string, SourceEvent>();
         const watcher = chokidar.watch(this.path);
-        console.log('now watching', this.path);
+        const startTime = performance.now();
+        console.log('watch start', this.path);
 
         let ready = false;
-        watcher.on("ready", () => ready = true);
+        watcher.on("ready", () => {
+            ready = true;
+            console.log('watch ready', this.path, performance.now() - startTime);
+        });
 
         watcher.on("add", async (path, existingStats) => {
             if (ready || await this.hasChanged(path, existingStats)) {
