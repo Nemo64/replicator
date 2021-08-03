@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import {readFileSync, statSync} from "fs";
+import {join} from 'path';
 import {performance} from "perf_hooks";
 import {cwd} from "process";
 import {Config, parse} from "./config";
@@ -14,7 +15,7 @@ if (!configFile) {
     throw new Error("Config file missing.");
 }
 
-const configPath = `${cwd()}/${configFile}`;
+const configPath = join(cwd(), configFile);
 const environment: DriverContext = {
     configPath: configPath,
     configTime: (statSync(configPath)).mtime,
@@ -22,23 +23,28 @@ const environment: DriverContext = {
 };
 
 const config = parse(JSON.parse(readFileSync(configPath, {encoding: 'utf8'})) as Config, environment);
-const events = new AsyncMergeIterator<SourceEvent>();
+const eventIterator = new AsyncMergeIterator<SourceEvent>();
 
-for (const source of config.keys()) {
-    events.add(source.watch());
+for (const {source} of config.values()) {
+    eventIterator.add(source.watch());
 }
 
 (async () => {
-    for await (const event of events) {
-        const mappings = config.get(event.sourceDriver) ?? [];
-        const update = await event.sourceDriver.process(event, async change => {
+    for await (const event of eventIterator) {
+        const mapping = config.get(event.sourceName);
+        if (!mapping) {
+            console.error(`there is no source named ${event.sourceName}`);
+            continue;
+        }
+
+        const update = await mapping.source.process(event, async change => {
             const updates = [];
             const viewIds = [];
             const startTime = performance.now();
 
-            for (const mapping of mappings) {
-                for (const [viewId, entries] of generateViews(change, mapping)) {
-                    updates.push(mapping.target.update({viewId, trigger: change}, entries));
+            for (const viewMapping of mapping.views) {
+                for (const [viewId, entries] of generateViews(change, viewMapping)) {
+                    updates.push(viewMapping.target.update({viewId, event, entries}));
                     viewIds.push(viewId);
                 }
             }

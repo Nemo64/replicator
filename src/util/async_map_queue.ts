@@ -2,7 +2,7 @@ export class AsyncMapQueue<K, V> implements AsyncIterableIterator<V> {
     private values = new Map<K, V>();
     private consumers = [] as ((value: IteratorResult<V>) => void)[];
 
-    add(key: K, value: V) {
+    set(key: K, value: V) {
         const consumer = this.consumers.shift();
         if (consumer) {
             consumer({value});

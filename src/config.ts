@@ -1,33 +1,34 @@
-import {DriverContext, FormatConstructor, Source, SourceConstructor, Target, TargetConstructor} from "./drivers/types";
+import {DriverContext, Source, Target} from "./drivers/types";
 import {parseStructure} from "./formatter";
 import {PatternObject} from "./pattern";
 
-export interface DriverConfig extends Record<string, any> {
-    readonly type: string;
+interface FormatContext {
+    readonly source: PatternObject;
+    readonly matrix: PatternObject;
 }
 
 export interface Config {
     readonly version: string;
-    readonly sources: Record<string, DriverConfig>;
+    readonly sources: Record<string, { type: string, [index: string]: any }>;
     readonly views: ViewConfig[];
 }
 
-interface ViewConfig {
+export interface ViewConfig {
     readonly source: string;
     readonly matrix: Record<string, string | string[]>;
-    readonly target: DriverConfig;
+    readonly target: { type: string, [index: string]: any };
     readonly format: PatternObject;
 }
 
-interface FormatContext {
-    source: PatternObject;
-    matrix: PatternObject;
+export interface Mapping {
+    readonly source: Source;
+    readonly views: ViewMapping[];
 }
 
 export interface ViewMapping {
-    target: Target,
-    matrix: (data: FormatContext) => Record<string, PatternObject[]>,
-    format: (data: FormatContext) => PatternObject,
+    readonly target: Target,
+    readonly matrix: (data: FormatContext) => Record<string, PatternObject[]>,
+    readonly format: (data: FormatContext) => PatternObject,
 }
 
 export function validate(config: Config, context: DriverContext) {
@@ -48,20 +49,20 @@ export function validate(config: Config, context: DriverContext) {
     }
 }
 
-export function parse(config: Config, context: DriverContext): Map<Source, ViewMapping[]> {
+export function parse(config: Config, context: DriverContext): Map<string, Mapping> {
     validate(config, context);
 
     const result = new Map;
     for (const sourceName in config.sources) {
-        const source = config.sources[sourceName];
-        const sourceDriver = new context.drivers.source[source.type](source, context);
-        const viewMappings = config.views.filter(view => view.source === sourceName).map(view => ({
-            target: new context.drivers.source[view.target.type](view.target, context),
+        const options = {name: sourceName, ...config.sources[sourceName]};
+        const source = new context.drivers.source[options.type](options, context);
+        const views = config.views.filter(view => view.source === sourceName).map(view => ({
+            target: new context.drivers.target[view.target.type](view.target, context),
             matrix: parseStructure(view.matrix) as unknown as (data: FormatContext) => Record<string, PatternObject[]>,
             format: parseStructure(view.format) as unknown as (data: FormatContext) => PatternObject,
         }));
 
-        result.set(sourceDriver, viewMappings);
+        result.set(sourceName, {source, views});
     }
 
     return result;

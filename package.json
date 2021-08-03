@@ -21,7 +21,7 @@
         "node": ">=14"
     },
     "scripts": {
-        "build": "rm -rf dist && tsc",
+        "build": "tsc --build --clean && tsc --build",
         "check": "tsc --noEmit",
         "start": "ts-node-dev --respawn src/cli.ts",
         "test": "jest"

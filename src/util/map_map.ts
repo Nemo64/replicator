@@ -1,13 +1,13 @@
 /**
- * A map of maps with a convenient {@see add} method that creates the inner map if it does not exist
+ * A map of maps with a convenient {@see add} method that creates the inner map if it does not exist.
  */
 export class MapMap<K1, K2, V> extends Map<K1, Map<K2, V>> {
     add(outerKey: K1, innerKey: K2, value: V) {
         const existingMap = this.get(outerKey);
-        if (existingMap !== undefined) {
+        if (existingMap) {
             existingMap.set(innerKey, value);
         } else {
-            this.set(outerKey, new Map().set(innerKey, value));
+            this.set(outerKey, new Map<K2, V>().set(innerKey, value));
         }
     }
 }
@@ -18,7 +18,7 @@ export class MapMap<K1, K2, V> extends Map<K1, Map<K2, V>> {
 export class MapSet<K1, K2> extends Map<K1, Set<K2>> {
     add(outerKey: K1, innerKey: K2) {
         const existingSet = this.get(outerKey);
-        if (existingSet !== undefined) {
+        if (existingSet) {
             existingSet.add(innerKey);
         } else {
             this.set(outerKey, new Set<K2>().add(innerKey));

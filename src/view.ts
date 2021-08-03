@@ -37,8 +37,9 @@ export function* generateViews(change: SourceChange, mapping: ViewMapping): Iter
     for (const [viewId, nextEntries] of nextEntriesByView) {
         const prevEntries = prevEntriesByView.get(viewId);
         if (prevEntries && prevEntries.size === nextEntries.size) {
-            if ([...nextEntries.keys()].every(hash => prevEntries.has(hash))) {
-                continue; // skip this update since nothing changed
+            const nothingChanged = [...nextEntries.keys()].every(hash => prevEntries.has(hash));
+            if (nothingChanged) {
+                continue;
             }
         }
 

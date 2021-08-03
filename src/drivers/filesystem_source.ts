@@ -7,24 +7,40 @@ import {basename, dirname, extname, join, relative} from "path";
 import {AsyncMapQueue} from "../util/async_map_queue";
 import {ChangeHandler, DriverContext, Format, Source, SourceEvent} from "./types";
 
+/**
+ * This source driver uses the os filesystem.
+ * It relies on filesystem events for {@see watch}.
+ *
+ * You need to add a {@see path} to the options which can be any glob pattern accepted by {@see chokidar}.
+ *
+ * Due to the nature of filesystem events, it is impossible to figure out the previous state of a source file.
+ * To work around this, clones of all source are made during initial processing. (Called shadow copies)
+ * If possible, the clone feature of copy-on-write filesystems is used to minimize the filesize overhead.
+ * This makes it possible to detect deletions and execute minimal view updates.
+ *
+ * This driver does uses binary files so it uses a {@see Format}.
+ * The default format is determined by the file extension of the path option.
+ */
 export class FilesystemSource implements Source {
     private readonly path: string;
     private readonly root: string;
     private readonly format: Format;
+    private readonly name: string;
 
     constructor(options: Record<string, any>, context: DriverContext) {
         if (typeof options.path !== 'string') {
-            throw new Error(`Filesystem sources require a path, got ${JSON.stringify(options.path)}`);
+            throw new Error(`Filesystem sources require a path, got ${JSON.stringify(options.path)}.`);
         }
 
-        const format = options?.format?.type || extname(options.path);
+        const format = options?.format?.type || extname(options.path).slice(1);
         if (typeof format !== 'string' || !context.drivers.format.hasOwnProperty(format)) {
-            throw new Error(`Format ${JSON.stringify(format)} is unknown`);
+            throw new Error(`Format ${JSON.stringify(format)} is unknown. You might want to specify the format option explicitly.`);
         }
 
         this.path = join(dirname(context.configPath), options.path);
         this.root = globParent(this.path);
         this.format = new context.drivers.format[format](options?.format ?? {}, context);
+        this.name = options.name;
     }
 
     watch(): AsyncIterable<SourceEvent> {
@@ -35,18 +51,18 @@ export class FilesystemSource implements Source {
         let ready = false;
         watcher.on("ready", () => ready = true);
 
-        watcher.on("add", async (path, stats) => {
-            if (ready || await this.hasChanged(path, stats)) {
-                queue.add(path, {type: "add", sourceId: this.id(path), sourceDriver: this});
+        watcher.on("add", async (path, existingStats) => {
+            if (ready || await this.hasChanged(path, existingStats)) {
+                queue.set(path, {type: "add", sourceId: this.id(path), sourceName: this.name});
             }
         });
 
         watcher.on("change", path => {
-            queue.add(path, {type: "change", sourceId: this.id(path), sourceDriver: this});
+            queue.set(path, {type: "change", sourceId: this.id(path), sourceName: this.name});
         });
 
         watcher.on("unlink", path => {
-            queue.add(path, {type: "remove", sourceId: this.id(path), sourceDriver: this});
+            queue.set(path, {type: "remove", sourceId: this.id(path), sourceName: this.name});
         });
 
         return queue;
@@ -58,8 +74,8 @@ export class FilesystemSource implements Source {
             const shadowPath = this.shadowPath(sourcePath);
 
             const [prevData, nextData] = await Promise.all([
-                event.type !== 'add' ? this.format.readSource(createReadStream(shadowPath)) : undefined,
-                event.type !== 'remove' ? this.format.readSource(createReadStream(sourcePath)) : undefined,
+                event.type !== 'add' && this.format.readSource(createReadStream(shadowPath)),
+                event.type !== 'remove' && this.format.readSource(createReadStream(sourcePath)),
             ]);
 
             const result = handler({...event, prevData, nextData});
@@ -73,13 +89,13 @@ export class FilesystemSource implements Source {
     }
 
     private async hasChanged(path: string, existingStats?: Stats): Promise<boolean> {
-        const [prevStat, nextStat] = await Promise.all([
+        const [prevStats, nextStats] = await Promise.all([
             stat(this.shadowPath(path)).catch(ignoreError('ENOENT')),
             existingStats ?? stat(path).catch(ignoreError('ENOENT')),
         ]);
 
-        return prevStat?.mtime?.getTime() !== nextStat?.mtime?.getTime()
-            && prevStat?.size !== nextStat?.size;
+        return prevStats?.mtime?.getTime() !== nextStats?.mtime?.getTime()
+            && prevStats?.size !== nextStats?.size;
     }
 
     private id(path: string): string {

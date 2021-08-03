@@ -3,20 +3,49 @@ import {Readable, Writable} from "stream";
 import {JsonFormat} from "./json_format";
 import {SourceEvent} from "./types";
 
-test(`parse json`, async () => {
+test(`parse.json`, async () => {
     const stream = Readable.from('{"data": "value"}');
     const result = await new JsonFormat({}).readSource(stream);
     expect(result).toEqual({data: 'value'});
 });
 
-test(`modify view`, async () => {
-    const readable = Readable.from('[{"_source":"foobar.json","value":1},{"_source":"barfoo.json","value":2}]');
-    const writable = new Writable();
-    writable._write = (chunk, encoding, next) => {
-        expect(chunk.toString()).toEqual('[{"_source":"foobar.json","value":1},{"_source":"barfoo.json","value":3}]');
-        next();
-    };
+const modifyCases = [
+    {
+        sourceId: "update.json",
+        original: '[{"_source":"existing.json","value":1},{"_source":"update.json","value":2}]',
+        expected: '[{"_source":"existing.json","value":1},{"_source":"update.json","value":3}]',
+        entries: [{value: 3}],
+    },
+    {
+        sourceId: "create.json",
+        original: null,
+        expected: '[{"_source":"create.json","value":1}]',
+        entries: [{value: 1}],
+    },
+    {
+        sourceId: "delete.json",
+        original: '[{"_source":"delete.json","value":1}]',
+        expected: '[]',
+        entries: [],
+    },
+];
 
-    const event = {type: "change", sourceId: 'barfoo.json', sourceDriver: {} as any} as SourceEvent;
-    await new JsonFormat({spaces: 0}).updateView(readable, writable, event, [{value: 3}]);
-});
+for (const {sourceId, original, expected, entries} of modifyCases) {
+    test(sourceId, async () => {
+
+        const readable = typeof original === 'string'
+            ? Readable.from(original)
+            : undefined;
+
+        const writable = new Writable();
+        writable._write = jest.fn((chunk, encoding, next) => {
+            expect(chunk.toString()).toEqual(expected);
+            next();
+        });
+
+        const event = {type: "change", sourceId, sourceName: 'test'} as SourceEvent;
+        const update = {event, viewId: '', entries};
+        await new JsonFormat({spaces: 0}).updateView(update, writable, readable);
+        expect(writable._write).toHaveBeenCalled();
+    });
+}

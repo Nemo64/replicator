@@ -1,64 +1,115 @@
-import {extname} from "path";
-import {PatternObject} from "../pattern";
-
-export interface DriverContext {
-    configPath: string;
-    configTime: Date;
-    drivers: {
-        source: Record<string, SourceConstructor>,
-        target: Record<string, TargetConstructor>,
-        format: Record<string, FormatConstructor>,
-    }
-}
-
-export interface SourceEvent {
-    sourceId: string;
-    sourceDriver: Source;
-    type: "add" | "change" | "remove";
-}
-
-export interface SourceAddChange extends SourceEvent {
-    type: "add";
-    nextData: any;
-}
-
-export interface SourceChangeChange extends SourceEvent {
-    type: "change";
-    prevData: any;
-    nextData: any;
-}
-
-export interface SourceRemoveChange extends SourceEvent {
-    type: "remove";
-    prevData: any;
-}
-
-export interface TargetUpdate {
-    trigger: SourceChange;
-    viewId: string;
-}
-
-export type SourceChange = SourceAddChange | SourceChangeChange | SourceRemoveChange;
-export type ChangeHandler<R> = (change: SourceChange) => Promise<R>;
-
+/**
+ * This is the interface for a source driver.
+ */
 export interface Source {
+    /**
+     * Watch the source for changes.
+     */
     watch(): AsyncIterable<SourceEvent>;
 
+    /**
+     * Process a {@see SourceEvent} using the given {@see ChangeHandler}.
+     * The previous data must stay available as long as the change handler has not resolved.
+     */
     process<R>(change: SourceEvent, handler: ChangeHandler<R>): Promise<R>;
 }
 
+/**
+ * This is the interface for a target driver.
+ */
 export interface Target {
-    id(data: PatternObject): string;
+    /**
+     * Create a viewId from the given data.
+     * This viewId can be anything that identifies the view resource within this target.
+     * Multiple sets of data may have the same id.
+     * These sets of data are then grouped during the {@see update}.
+     */
+    id(data: any): string;
 
-    update(update: TargetUpdate, entries: PatternObject[]): Promise<void>;
+    /**
+     * Update the specified viewId with the given entries.
+     * It is expected that this update replaces all entries from the same {@see SourceEvent.sourceId}.
+     */
+    update(update: ViewUpdate): Promise<void>;
 }
 
+/**
+ * This is a format for {@see Source} and {@see Target} drivers that store binary data.
+ * This is usually json.
+ */
 export interface Format {
+    /**
+     * Parses a stream of the given format.
+     *
+     * @return any structured format that is appropriate for further processing though the pattern formatter.
+     */
     readSource(reader: NodeJS.ReadableStream): Promise<any>;
 
-    updateView(reader: NodeJS.ReadableStream | void, writer: NodeJS.WritableStream, event: SourceEvent, entries: any[]): Promise<number>;
+    /**
+     * Updates a view blob.
+     * If the view already existed, then a reader is passed.
+     *
+     * It is not required that the Format implements view merging but it is strongly expected.
+     * If view merging is suppoted, then it is expected that the read stream is copied over to the write stream,
+     * but with all entries from the {@see SourceEvent.sourceId} replaced with the given entries.
+     *
+     * @return {Promise<number>} The number of entries in that view after the update.
+     *     If this number is 0, then the view is usually deleted after the update.
+     */
+    updateView(update: ViewUpdate, writer: NodeJS.WritableStream, reader?: NodeJS.ReadableStream): Promise<number>;
 }
 
 export type SourceConstructor = new (options: Record<string, any>, context: DriverContext) => Source;
 export type TargetConstructor = new (options: Record<string, any>, context: DriverContext) => Target;
 export type FormatConstructor = new (options: Record<string, any>, context: DriverContext) => Format;
+
+/**
+ * These are context options that tell drivers a few things about the environment they are in.
+ */
+export interface DriverContext {
+    readonly configPath: string;
+    readonly configTime: Date;
+    readonly drivers: {
+        readonly source: Record<string, SourceConstructor>,
+        readonly target: Record<string, TargetConstructor>,
+        readonly format: Record<string, FormatConstructor>,
+    }
+}
+
+/**
+ * This is an event, usually created by {@see Source.watch}.
+ * But it is intended that an event can be triggered by other means.
+ */
+export interface SourceEvent {
+    readonly sourceId: string;
+    readonly sourceName: string;
+    readonly type: "add" | "change" | "remove";
+}
+
+export interface SourceAddChange extends SourceEvent {
+    readonly type: "add";
+    readonly nextData: any;
+}
+
+export interface SourceChangeChange extends SourceEvent {
+    readonly type: "change";
+    readonly prevData: any;
+    readonly nextData: any;
+}
+
+export interface SourceRemoveChange extends SourceEvent {
+    readonly type: "remove";
+    readonly prevData: any;
+}
+
+export type SourceChange = SourceAddChange | SourceChangeChange | SourceRemoveChange;
+export type ChangeHandler<R> = (change: SourceChange) => Promise<R>;
+
+/**
+ * All the information needed to execute a view update.
+ */
+export interface ViewUpdate {
+    readonly viewId: string;
+    readonly event: SourceEvent;
+    readonly entries: any[];
+}

@@ -1,4 +1,4 @@
-import {Format, SourceEvent} from "./types";
+import {Format, ViewUpdate} from "./types";
 
 export class JsonFormat implements Format {
     private readonly spaces: number;
@@ -18,15 +18,15 @@ export class JsonFormat implements Format {
         return JSON.parse(string);
     }
 
-    async updateView(reader: NodeJS.ReadableStream | void, writer: NodeJS.WritableStream, event: SourceEvent, entries: any[]): Promise<number> {
+    async updateView(update: ViewUpdate, writer: NodeJS.WritableStream, reader?: NodeJS.ReadableStream): Promise<number> {
         const view = reader ? await this.readSource(reader) : [];
         if (!Array.isArray(view)) {
             throw new Error(`Sources besides array are not supported.`);
         }
 
         const result = view
-            .filter(entry => entry._source !== event.sourceId)
-            .concat(entries.map(entry => ({_source: event.sourceId, ...entry})));
+            .filter(entry => entry._source !== update.event.sourceId)
+            .concat(update.entries.map(entry => ({_source: update.event.sourceId, ...entry})));
 
         return new Promise((resolve, reject) => {
             const string = JSON.stringify(result, null, this.spaces);
