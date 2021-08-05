@@ -10,27 +10,36 @@ import {DriverContext, SourceEvent} from "./drivers/types";
 import {AsyncMergeIterator} from "./util/async_merge_iterator";
 import {generateViews} from "./view";
 
-const [configFile] = process.argv.slice(2);
-if (!configFile) {
-    throw new Error("Config file missing.");
-}
+execute(process.argv.slice(2))
+    .then(() => {
+        process.exit(0);
+    })
+    .catch(e => {
+        console.error(e);
+        process.exit(1);
+    });
 
-const configPath = join(cwd(), configFile);
-const environment: DriverContext = {
-    configPath: configPath,
-    configTime: (statSync(configPath)).mtime,
-    drivers,
-};
+export async function execute(args: string[]) {
+    const [configFile] = args;
+    if (!configFile) {
+        throw new Error("Config file option missing.");
+    }
 
-// const config = parse(JSON.parse(readFileSync(configPath, {encoding: 'utf8'})) as Config, environment);
-const config = parse(require(configPath), environment);
-const eventIterator = new AsyncMergeIterator<SourceEvent>();
+    const configPath = join(cwd(), configFile);
+    const environment: DriverContext = {
+        configPath: configPath,
+        configTime: (statSync(configPath)).mtime,
+        drivers,
+    };
 
-for (const {source} of config.values()) {
-    eventIterator.add(source.watch());
-}
+    // const config = parse(JSON.parse(readFileSync(configPath, {encoding: 'utf8'})) as Config, environment);
+    const config = parse(require(configPath), environment);
+    const eventIterator = new AsyncMergeIterator<SourceEvent>();
 
-(async () => {
+    for (const {source} of config.values()) {
+        eventIterator.add(source.watch());
+    }
+
     for await (const event of eventIterator) {
         const mapping = config.get(event.sourceName);
         if (!mapping) {
@@ -61,9 +70,5 @@ for (const {source} of config.values()) {
         } catch (e) {
             console.error(e);
         }
-
     }
-})().catch(e => {
-    console.error(e);
-    process.exit(1);
-});
+}
