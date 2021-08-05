@@ -3,7 +3,7 @@
 This is a concept/prototype. Please give me feedback.
 
 The idea is to replace your traditional SQL or noSQL database with plain-old files.
-The is achieved by continuously keeping your queries answered
+The is achieved by continuously keeping your queries answered when the sources change
 instead of preparing your data for on-the-fly answering. 
 
 Replicator aggregates files (using filesystem events) into different view copies,
@@ -13,22 +13,22 @@ That does mean we are duplicating a lot of data, but the list of advantages is l
 
 - Every view is just 1 or more file that is already saved in a deliverable format, so view performance is excellent
 - Browsers and CDN's can efficiently download, cache and revalidate files, since the mtime is actually correct
-- The linux page cache can improve delivery performance without any configuration
+- The os file cache automatically improve delivery performance without any complex configuration
 - Your hoster can probably deliver stored files very efficiently
 - Replicating and safely storing files is a known and solved issue
-- Most programming environments can handle files well, no integration needed.
+- Most programming environments can handle files well, no integration required
 
 The aim is to be an extension to the native filesystem or block storage (s3),
 and not a completely new way how to interact with data, like most databases.
 That way, this project can profit off of decades of persistence experience (raid, SAM, nfs, rsync, mounts etc)
-and existing deliver systems (apache, nginx, CDN's etc) without much integration.
+and existing deliver systems (apache, nginx, CDN's etc) without reinventing the wheel.
 
 ## calendar example
 
 This example is available in the [examples/](examples) folder to play around with.
 
-In a database, you'd usually normalize the data down to basic calendar information and appointments. But for
-replicator-db, you want to store as much related data in a single file as possible.
+In a database, you'd usually normalize the data down to basic calendar information and appointments.
+But for replicator, you want to store as much related data in a single file as possible.
 
 ```json5
 // source/6ff6255b-45b5-4895-8d59-50fa60663cfc.json
@@ -54,7 +54,7 @@ But you instantly have different access patterns that you can't easily solve wit
 - You want to show the user a list of all calendars he can see (including shared ones)
 - You want to show the user all appointments of this week/month over multiple calendars
 
-The replicator-db will duplicate the data (on fs-events) into different structures.
+Replicator can duplicate the data into different structures.
 
 - The main calendar files live in `source/6ff6255b-45b5-4895-8d59-50fa60663cfc.json`
 - Replicator can store the uuid's, access rights and names of calendars in `views/user+1@example.com/calendars.json`
