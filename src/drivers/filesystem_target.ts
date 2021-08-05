@@ -2,6 +2,7 @@ import {constants as fs, createReadStream, createWriteStream} from "fs";
 import {FileHandle, mkdir, open, rename, rm, rmdir, stat} from "fs/promises";
 import {basename, dirname, extname, join, relative} from "path";
 import {parse, PatternFunction} from "../pattern";
+import {Options} from "../util/options";
 import {DriverContext, Format, Target, ViewUpdate} from "./types";
 import globParent = require("glob-parent");
 
@@ -20,19 +21,15 @@ export class FilesystemTarget implements Target {
     private readonly root: string;
     private readonly format: Format;
 
-    constructor(options: Record<string, any>, context: DriverContext) {
-        if (typeof options.path !== 'string') {
-            throw new Error(`Filesystem targets require a path, got ${JSON.stringify(options.path)}`);
-        }
+    constructor(options: Options, context: DriverContext) {
+        const stringPath = join(dirname(context.configPath), options.require('path', {type: 'string'}));
+        this.path = parse(stringPath);
+        this.root = globParent(stringPath);
 
-        const format = options?.format || extname(options.path).slice(1);
-        if (typeof format !== 'string' || !context.drivers.format.hasOwnProperty(format)) {
-            throw new Error(`Format ${JSON.stringify(format)} is unknown`);
+        const format = options.optional('format', {type: 'string'}, () => extname(stringPath).slice(1));
+        if (!context.drivers.format.hasOwnProperty(format)) {
+            throw new Error(`Format ${JSON.stringify(format)} is unknown. You might want to specify the format option explicitly.`);
         }
-
-        const path = join(dirname(context.configPath), options.path);
-        this.root = globParent(path);
-        this.path = parse(relative(this.root, path));
         this.format = new context.drivers.format[format](options, context);
     }
 

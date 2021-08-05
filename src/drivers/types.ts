@@ -1,6 +1,8 @@
 /**
  * This is the interface for a source driver.
  */
+import {Options} from "../util/options";
+
 export interface Source {
     /**
      * Watch the source for changes.
@@ -59,9 +61,9 @@ export interface Format {
     updateView(update: ViewUpdate, writer: NodeJS.WritableStream, reader?: NodeJS.ReadableStream): Promise<number>;
 }
 
-export type SourceConstructor = new (options: Record<string, any>, context: DriverContext) => Source;
-export type TargetConstructor = new (options: Record<string, any>, context: DriverContext) => Target;
-export type FormatConstructor = new (options: Record<string, any>, context: DriverContext) => Format;
+export type SourceConstructor = new (options: Options, context: DriverContext) => Source;
+export type TargetConstructor = new (options: Options, context: DriverContext) => Target;
+export type FormatConstructor = new (options: Options, context: DriverContext) => Format;
 
 /**
  * These are context options that tell drivers a few things about the environment they are in.

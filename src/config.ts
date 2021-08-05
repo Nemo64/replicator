@@ -1,6 +1,7 @@
 import {DriverContext, Source, Target} from "./drivers/types";
 import {parseStructure} from "./formatter";
 import {PatternObject} from "./pattern";
+import {Options} from "./util/options";
 
 interface FormatContext {
     readonly source: PatternObject;
@@ -54,14 +55,23 @@ export function parse(config: Config, context: DriverContext): Map<string, Mappi
 
     const result = new Map;
     for (const sourceName in config.sources) {
-        const options = {name: sourceName, ...config.sources[sourceName]};
-        const source = new context.drivers.source[options.type](options, context);
-        const views = config.views.filter(view => view.source === sourceName).map(view => ({
-            target: new context.drivers.target[view.target.type](view.target, context),
-            matrix: parseStructure(view.matrix) as unknown as (data: FormatContext) => Record<string, PatternObject[]>,
-            format: parseStructure(view.format) as unknown as (data: FormatContext) => PatternObject,
-        }));
+        const sourceOptions = new Options({name: sourceName, ...config.sources[sourceName]}, `source ${JSON.stringify(sourceName)}`);
+        const sourceType: string = sourceOptions.require('type', {type: 'string'});
+        const source = new context.drivers.source[sourceType](sourceOptions, context);
 
+        const views = config.views.filter(view => view.source === sourceName).map(view => {
+            const targetOptions = new Options(view.target, `view target`);
+            const targetType: string = targetOptions.require('type', {type: 'string'});
+            const viewMapping: ViewMapping = {
+                target: new context.drivers.target[targetType](targetOptions, context),
+                matrix: parseStructure(view.matrix) as unknown as (data: FormatContext) => Record<string, PatternObject[]>,
+                format: parseStructure(view.format) as unknown as (data: FormatContext) => PatternObject,
+            };
+            targetOptions.warnUnused();
+            return viewMapping;
+        });
+
+        sourceOptions.warnUnused();
         result.set(sourceName, {source, views});
     }
 

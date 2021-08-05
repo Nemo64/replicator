@@ -1,11 +1,12 @@
 import {test} from "@jest/globals";
 import {Readable, Writable} from "stream";
+import {Options} from "../util/options";
 import {JsonFormat} from "./json_format";
 import {SourceEvent} from "./types";
 
 test(`parse.json`, async () => {
     const stream = Readable.from('{"data": "value"}');
-    const result = await new JsonFormat({}).readSource(stream);
+    const result = await new JsonFormat(new Options({})).readSource(stream);
     expect(result).toEqual({data: 'value'});
 });
 
@@ -45,7 +46,7 @@ for (const {sourceId, original, expected, entries} of modifyCases) {
 
         const event = {type: "change", sourceId, sourceName: 'test'} as SourceEvent;
         const update = {event, viewId: '', entries};
-        await new JsonFormat({indention: 0}).updateView(update, writable, readable);
+        await new JsonFormat(new Options({indention: 0})).updateView(update, writable, readable);
         expect(writable._write).toHaveBeenCalled();
     });
 }

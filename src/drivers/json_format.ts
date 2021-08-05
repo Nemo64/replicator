@@ -2,6 +2,7 @@ import Ajv, {ValidateFunction} from "ajv";
 import addFormats from "ajv-formats";
 import {readFileSync} from "fs";
 import {dirname, join} from "path";
+import {Options} from "../util/options";
 import {DriverContext, Format, ViewUpdate} from "./types";
 
 export class JsonFormat implements Format {
@@ -9,13 +10,14 @@ export class JsonFormat implements Format {
     private readonly validator: ValidateFunction | null;
     private readonly schemaPath: string | null;
 
-    constructor(options: Record<string, any>, context?: DriverContext) {
-        this.indention = typeof options.indention === 'number' ? options.indention : 2;
+    constructor(options: Options, context?: DriverContext) {
+        this.indention = options.optional('indention', {type: 'number'}, 2);
 
-        if (typeof options.schema === 'string' && context) {
+        const schemaPath = options.optional('schema', {type: 'string', nullable: true}, null);
+        if (schemaPath && context) {
             const ajv = new Ajv({allErrors: true});
             addFormats(ajv);
-            this.schemaPath = join(dirname(context.configPath), options.schema);
+            this.schemaPath = join(dirname(context.configPath), schemaPath);
             try {
                 this.validator = ajv.compile(JSON.parse(readFileSync(this.schemaPath, {encoding: 'utf8'})));
             } catch (e) {

@@ -6,6 +6,7 @@ import {Stats} from "node:fs";
 import {basename, dirname, extname, join, relative} from "path";
 import {performance} from "perf_hooks";
 import {AsyncMapQueue} from "../util/async_map_queue";
+import {Options} from "../util/options";
 import {ChangeHandler, DriverContext, Format, Source, SourceEvent} from "./types";
 
 /**
@@ -23,25 +24,21 @@ import {ChangeHandler, DriverContext, Format, Source, SourceEvent} from "./types
  * The default format is determined by the file extension of the path option.
  */
 export class FilesystemSource implements Source {
+    private readonly name: string;
     private readonly path: string;
     private readonly root: string;
     private readonly format: Format;
-    private readonly name: string;
 
-    constructor(options: Record<string, any>, context: DriverContext) {
-        if (typeof options.path !== 'string') {
-            throw new Error(`Filesystem sources require a path, got ${JSON.stringify(options.path)}.`);
-        }
+    constructor(options: Options, context: DriverContext) {
+        this.name = options.require('name', {type: 'string'});
+        this.path = join(dirname(context.configPath), options.require('path', {type: 'string'}));
+        this.root = globParent(this.path);
 
-        const format = options?.format || extname(options.path).slice(1);
-        if (typeof format !== 'string' || !context.drivers.format.hasOwnProperty(format)) {
+        const format = options.optional('format', {type: 'string'}, () => extname(this.path).slice(1));
+        if (!context.drivers.format.hasOwnProperty(format)) {
             throw new Error(`Format ${JSON.stringify(format)} is unknown. You might want to specify the format option explicitly.`);
         }
-
-        this.path = join(dirname(context.configPath), options.path);
-        this.root = globParent(this.path);
         this.format = new context.drivers.format[format](options, context);
-        this.name = options.name;
     }
 
     watch(): AsyncIterable<SourceEvent> {
