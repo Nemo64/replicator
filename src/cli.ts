@@ -22,7 +22,8 @@ const environment: DriverContext = {
     drivers,
 };
 
-const config = parse(JSON.parse(readFileSync(configPath, {encoding: 'utf8'})) as Config, environment);
+// const config = parse(JSON.parse(readFileSync(configPath, {encoding: 'utf8'})) as Config, environment);
+const config = parse(require(configPath), environment);
 const eventIterator = new AsyncMergeIterator<SourceEvent>();
 
 for (const {source} of config.values()) {
