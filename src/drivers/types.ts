@@ -82,29 +82,45 @@ export interface DriverContext {
  * This is an event, usually created by {@see Source.watch}.
  * But it is intended that an event can be triggered by other means.
  */
-export interface SourceEvent {
+export type SourceEvent = SourceInsertEvent | SourceDeleteEvent | SourceUpdateEvent;
+
+export interface SourceInsertEvent {
+    readonly type: "insert";
     readonly sourceId: string;
     readonly sourceName: string;
-    readonly type: "add" | "change" | "remove";
 }
 
-export interface SourceAddChange extends SourceEvent {
-    readonly type: "add";
-    readonly nextData: any;
+export interface SourceDeleteEvent {
+    readonly type: "delete";
+    readonly sourceId: string;
+    readonly sourceName: string;
 }
 
-export interface SourceChangeChange extends SourceEvent {
-    readonly type: "change";
-    readonly prevData: any;
-    readonly nextData: any;
+export interface SourceUpdateEvent {
+    readonly type: "update";
+    readonly sourceId: string;
+    readonly sourceName: string;
+    readonly suspicious: boolean;
 }
 
-export interface SourceRemoveChange extends SourceEvent {
-    readonly type: "remove";
-    readonly prevData: any;
+/**
+ * This is the actual change information you have during the change processing.
+ */
+export type SourceChange = SourceInsertChange | SourceDeleteChange | SourceUpdateChange
+
+export interface SourceInsertChange extends SourceInsertEvent {
+    readonly currentData: any;
 }
 
-export type SourceChange = SourceAddChange | SourceChangeChange | SourceRemoveChange;
+export interface SourceDeleteChange extends SourceDeleteEvent {
+    readonly previousData: any;
+}
+
+export interface SourceUpdateChange extends SourceUpdateEvent {
+    readonly previousData: any;
+    readonly currentData: any;
+}
+
 export type ChangeHandler<R> = (change: SourceChange) => Promise<R>;
 
 /**

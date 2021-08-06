@@ -1,10 +1,10 @@
 import {constants as fs, createReadStream, createWriteStream} from "fs";
 import {FileHandle, mkdir, open, rename, rm, rmdir, stat} from "fs/promises";
+import * as globParent from "glob-parent";
 import {basename, dirname, extname, join, relative} from "path";
 import {parse, PatternFunction} from "../pattern";
 import {Options} from "../util/options";
 import {DriverContext, Format, Target, ViewUpdate} from "./types";
-import globParent = require("glob-parent");
 
 /**
  * This target driver uses the os filesystem.
@@ -23,8 +23,8 @@ export class FilesystemTarget implements Target {
 
     constructor(options: Options, context: DriverContext) {
         const stringPath = join(dirname(context.configPath), options.require('path', {type: 'string'}));
-        this.path = parse(stringPath);
         this.root = globParent(stringPath);
+        this.path = parse(relative(this.root, stringPath));
 
         const format = options.optional('format', {type: 'string'}, () => extname(stringPath).slice(1));
         if (!context.drivers.format.hasOwnProperty(format)) {
