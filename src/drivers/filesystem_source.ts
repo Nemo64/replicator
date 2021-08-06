@@ -62,7 +62,7 @@ export class FilesystemSource implements Source {
 
             if (previousStats && currentStats) {
                 const suspicious = previousStats.mtime.getTime() < this.configTime.getTime();
-                const modified = previousStats.mtime.getTime() !== currentStats.mtime.getTime();
+                const modified = previousStats.mtime.getTime() < currentStats.mtime.getTime();
                 if (modified || suspicious) {
                     queue.set(path, {
                         type: "update",
