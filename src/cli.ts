@@ -1,16 +1,18 @@
 #!/usr/bin/env node
 
-import {readFileSync, statSync} from "fs";
+import {stat} from "fs/promises";
 import {join} from 'path';
 import {performance} from "perf_hooks";
 import {cwd} from "process";
-import {Config, parse} from "./config";
-import {drivers} from "./drivers/lists";
+import {parse} from "./config";
+import {FilesystemSource} from "./drivers/filesystem_source";
+import {FilesystemTarget} from "./drivers/filesystem_target";
+import {JsonFormat} from "./drivers/json_format";
 import {DriverContext, SourceEvent} from "./drivers/types";
 import {AsyncMergeIterator} from "./util/async_merge_iterator";
 import {generateViews} from "./view";
 
-execute(process.argv.slice(2))
+execute(process.argv)
     .then(() => {
         process.exit(0);
     })
@@ -19,17 +21,27 @@ execute(process.argv.slice(2))
         process.exit(1);
     });
 
-export async function execute(args: string[]) {
-    const [configFile] = args;
+async function execute(argv: string[]) {
+    const [process, script, configFile] = argv;
     if (!configFile) {
-        throw new Error("Config file option missing.");
+        throw `No config file given.\nUsage: node ${script} [configFile]`;
     }
 
     const configPath = join(cwd(), configFile);
     const environment: DriverContext = {
         configPath: configPath,
-        configTime: (statSync(configPath)).mtime,
-        drivers,
+        configTime: (await stat(configPath)).mtime,
+        drivers: {
+            source: {
+                "filesystem": FilesystemSource,
+            },
+            target: {
+                "filesystem": FilesystemTarget,
+            },
+            format: {
+                "json": JsonFormat,
+            },
+        },
     };
 
     // const config = parse(JSON.parse(readFileSync(configPath, {encoding: 'utf8'})) as Config, environment);
