@@ -1,0 +1,64 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+
+    "type": "object",
+    "required": ["sources", "views"],
+    "properties": {
+        "sources": {
+            "type": "object",
+            "propertyNames": {"$ref": "#/definitions/key"},
+            "additionalProperties": {"$ref": "#/definitions/driver"}
+        },
+        "views": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "required": ["source", "target", "format"],
+                "properties": {
+                    "source": {
+                        "$ref": "#/definitions/key"
+                    },
+                    "matrix": {
+                        "type": "object",
+                        "propertyNames": {"$ref": "#/definitions/key"},
+                        "additionalProperties": {
+                            "anyOf": [
+                                {"type": "string", "pattern": "\\{.*\\}"},
+                                {"type": "array", "items": {"type": "string"}}
+                            ]
+                        }
+                    },
+                    "target": {
+                        "$ref": "#/definitions/driver"
+                    },
+                    "format": {
+                        "anyOf": [
+                            {"type": "string"},
+                            {"type": "object"}
+                        ]
+                    }
+                }
+            }
+        }
+    },
+
+    "definitions": {
+        "key": {
+            "type": "string",
+            "pattern": "^[A-Za-z_][A-Za-z0-9_]*$",
+            "minLength": 1,
+            "maxLength": 32
+        },
+        "driver": {
+            "type": "object",
+            "required": ["type"],
+            "properties": {
+                "type": {"type": "string", "examples": ["filesystem"]},
+                "path": {"type": "string"},
+                "schema": {"type": "string"},
+                "format": {"type": "string", "examples": ["json", "csv"]},
+                "compression": {"type": "string", "examples": ["none", "gzip", "brotli"]}
+            }
+        }
+    }
+}

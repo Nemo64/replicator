@@ -1,6 +1,5 @@
 import Ajv, {ValidateFunction} from "ajv";
 import addFormats from "ajv-formats";
-import {readFileSync} from "fs";
 import {dirname, join} from "path";
 import {Options} from "../util/options";
 import {DriverContext, Format, ViewUpdate} from "./types";
@@ -19,7 +18,7 @@ export class JsonFormat implements Format {
             addFormats(ajv);
             this.schemaPath = join(dirname(context.configPath), schemaPath);
             try {
-                this.validator = ajv.compile(JSON.parse(readFileSync(this.schemaPath, {encoding: 'utf8'})));
+                this.validator = ajv.compile(require(this.schemaPath));
             } catch (e) {
                 e.message = `${this.schemaPath}\n${e.message}`;
                 throw e;

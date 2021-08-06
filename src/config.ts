@@ -1,3 +1,4 @@
+import Ajv from "ajv";
 import {DriverContext, Source, Target} from "./drivers/types";
 import {parseStructure} from "./formatter";
 import {PatternObject} from "./pattern";
@@ -32,28 +33,48 @@ export interface ViewMapping {
     readonly format: (data: FormatContext) => PatternObject,
 }
 
-export function validate(config: Config, context: DriverContext) {
+const ajv = new Ajv({allErrors: true});
+const schema = require('../schemas/config.json');
+const schemaValidate = ajv.compile<Config>(schema);
+
+export function validate(config: any, context: DriverContext): config is Config {
+    if (!schemaValidate(config)) {
+        throw new Error(ajv.errorsText(schemaValidate.errors));
+    }
+
     const missingSourceNames = config.views
         .map(view => view.source)
         .filter(sourceName => !config.sources.hasOwnProperty(sourceName))
         .filter((sourceName, index, array) => index === array.indexOf(sourceName));
     if (missingSourceNames.length > 0) {
-        throw new Error(`The source(s) "${missingSourceNames.join(', ')}" is/are mentioned in views but not declared.`);
+        throw new Error(`Undefined sources: ${missingSourceNames.map(v => JSON.stringify(v)).join(', ')}`);
     }
 
-    const missingDrivers = Object.values(config.sources)
+    const missingSourceDrivers = Object.values(config.sources)
         .map(source => source.type)
         .filter(type => !context.drivers.source.hasOwnProperty(type))
-        .filter((sourceName, index, array) => index === array.indexOf(sourceName));
-    if (missingDrivers.length > 0) {
-        throw new Error(`The driver(s) "${missingDrivers.join(', ')}" is/are not available.`);
+        .filter((driverType, index, array) => index === array.indexOf(driverType));
+    if (missingSourceDrivers.length > 0) {
+        throw new Error(`Unknown source drivers: ${missingSourceDrivers.map(v => JSON.stringify(v)).join(', ')}`);
     }
+
+    const missingTargetDrivers = config.views
+        .map(view => view.target.type)
+        .filter(type => !context.drivers.target.hasOwnProperty(type))
+        .filter((driverType, index, array) => index === array.indexOf(driverType));
+    if (missingTargetDrivers.length > 0) {
+        throw new Error(`Unknown target drivers: ${missingTargetDrivers.map(v => JSON.stringify(v)).join(', ')}`);
+    }
+
+    return true;
 }
 
-export function parse(config: Config, context: DriverContext): Map<string, Mapping> {
-    validate(config, context);
-
+export function parse(config: any, context: DriverContext): Map<string, Mapping> {
     const result = new Map;
+    if (!validate(config, context)) {
+        return result;
+    }
+
     for (const sourceName in config.sources) {
         const sourceOptions = new Options({name: sourceName, ...config.sources[sourceName]}, `source ${JSON.stringify(sourceName)}`);
         const sourceType: string = sourceOptions.require('type', {type: 'string'});
