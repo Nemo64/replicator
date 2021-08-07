@@ -36,9 +36,8 @@ export class Options {
         }
 
         const validate = ajv.compile(schema);
-        validate(this.options[key]);
-        if (validate.errors?.length) {
-            throw new Error(`option ${JSON.stringify(key)} in ${this.context} is invalid\n${ajv.errorsText(validate.errors)}`);
+        if (!validate(this.options[key])) {
+            throw new Error(`option ${JSON.stringify(key)} in ${this.context} is invalid\n${ajv.errorsText(validate.errors, {separator: "\n", dataVar: key})}`);
         }
 
         return this.options[key];
