@@ -1,17 +1,17 @@
 [
-    {
-        "_source": "2732158b-aaa3-4951-aa40-6e9cbac328d0.json",
-        "name": "Work events",
-        "privilege": "read-only"
-    },
-    {
-        "_source": "67763fd6-13df-4a9b-967b-88773380dea7.json",
-        "name": "Holidays",
-        "privilege": "owner"
-    },
-    {
-        "_source": "6ff6255b-45b5-4895-8d59-50fa60663cfc.json",
-        "name": "Personal",
-        "privilege": "read-only"
-    }
+  {
+    "_source": "2732158b-aaa3-4951-aa40-6e9cbac328d0.json",
+    "name": "Work events",
+    "privilege": "read-only"
+  },
+  {
+    "_source": "67763fd6-13df-4a9b-967b-88773380dea7.json",
+    "name": "Holidays",
+    "privilege": "owner"
+  },
+  {
+    "_source": "6ff6255b-45b5-4895-8d59-50fa60663cfc.json",
+    "name": "Personal",
+    "privilege": "read-only"
+  }
 ]

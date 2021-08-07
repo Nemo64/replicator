@@ -46,7 +46,8 @@ export class JsonFormat implements Format {
 
         const result = view
             .filter(entry => entry._source !== update.event.sourceId)
-            .concat(update.entries.map(entry => ({_source: update.event.sourceId, ...entry})));
+            .concat(update.entries.map(entry => ({_source: update.event.sourceId, ...entry})))
+            .sort((a, b) => a._source.localeCompare(b._source));
 
         return new Promise((resolve, reject) => {
             const string = JSON.stringify(result, null, this.indention);

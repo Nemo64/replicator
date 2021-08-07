@@ -1,47 +1,47 @@
 [
-    {
-        "_source": "2732158b-aaa3-4951-aa40-6e9cbac328d0.json",
-        "calendar": {
-            "name": "Work events",
-            "privilege": "owner"
-        },
-        "name": "Morning Meeting",
-        "time": "2021-06-07T10:00:00+02:00"
+  {
+    "_source": "2732158b-aaa3-4951-aa40-6e9cbac328d0.json",
+    "calendar": {
+      "name": "Work events",
+      "privilege": "owner"
     },
-    {
-        "_source": "2732158b-aaa3-4951-aa40-6e9cbac328d0.json",
-        "calendar": {
-            "name": "Work events",
-            "privilege": "owner"
-        },
-        "name": "Morning Meeting",
-        "time": "2021-06-14T10:00:00+02:00"
+    "name": "Morning Meeting",
+    "time": "2021-06-07T10:00:00+02:00"
+  },
+  {
+    "_source": "2732158b-aaa3-4951-aa40-6e9cbac328d0.json",
+    "calendar": {
+      "name": "Work events",
+      "privilege": "owner"
     },
-    {
-        "_source": "2732158b-aaa3-4951-aa40-6e9cbac328d0.json",
-        "calendar": {
-            "name": "Work events",
-            "privilege": "owner"
-        },
-        "name": "Morning Meeting",
-        "time": "2021-06-21T10:00:00+02:00"
+    "name": "Morning Meeting",
+    "time": "2021-06-14T10:00:00+02:00"
+  },
+  {
+    "_source": "2732158b-aaa3-4951-aa40-6e9cbac328d0.json",
+    "calendar": {
+      "name": "Work events",
+      "privilege": "owner"
     },
-    {
-        "_source": "2732158b-aaa3-4951-aa40-6e9cbac328d0.json",
-        "calendar": {
-            "name": "Work events",
-            "privilege": "owner"
-        },
-        "name": "Morning Meeting",
-        "time": "2021-06-28T10:00:00+02:00"
+    "name": "Morning Meeting",
+    "time": "2021-06-21T10:00:00+02:00"
+  },
+  {
+    "_source": "2732158b-aaa3-4951-aa40-6e9cbac328d0.json",
+    "calendar": {
+      "name": "Work events",
+      "privilege": "owner"
     },
-    {
-        "_source": "6ff6255b-45b5-4895-8d59-50fa60663cfc.json",
-        "calendar": {
-            "name": "Personal",
-            "privilege": "owner"
-        },
-        "name": "Car inspection",
-        "time": "2021-06-28T06:00:00+02:00"
-    }
+    "name": "Morning Meeting",
+    "time": "2021-06-28T10:00:00+02:00"
+  },
+  {
+    "_source": "6ff6255b-45b5-4895-8d59-50fa60663cfc.json",
+    "calendar": {
+      "name": "Personal",
+      "privilege": "owner"
+    },
+    "name": "Car inspection",
+    "time": "2021-06-28T06:00:00+02:00"
+  }
 ]
