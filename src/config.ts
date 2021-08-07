@@ -39,7 +39,7 @@ const schemaValidate = ajv.compile<Config>(schema);
 
 export function validate(config: any, context: DriverContext): config is Config {
     if (!schemaValidate(config)) {
-        throw new Error(ajv.errorsText(schemaValidate.errors));
+        throw new Error(ajv.errorsText(schemaValidate.errors, {dataVar: 'configuration', separator: "\n"}));
     }
 
     const missingSourceNames = config.views

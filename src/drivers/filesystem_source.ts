@@ -99,8 +99,8 @@ export class FilesystemSource implements Source {
             const shadowPath = this.shadowPath(sourcePath);
 
             const [previousData, currentData] = await Promise.all([
-                event.type !== 'insert' && this.format.readSource(createReadStream(shadowPath)),
-                event.type !== 'delete' && this.format.readSource(createReadStream(sourcePath)),
+                event.type !== 'insert' && this.format.readSource(event, createReadStream(shadowPath)),
+                event.type !== 'delete' && this.format.readSource(event, createReadStream(sourcePath)),
                 event.type === 'insert' && mkdir(dirname(shadowPath), {recursive: true}),
             ]);
 

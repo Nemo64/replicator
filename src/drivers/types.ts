@@ -45,7 +45,7 @@ export interface Format {
      *
      * @return any structured format that is appropriate for further processing though the pattern formatter.
      */
-    readSource(reader: NodeJS.ReadableStream): Promise<any>;
+    readSource(event: SourceEvent, reader: NodeJS.ReadableStream): Promise<any>;
 
     /**
      * Updates a view blob.
@@ -100,7 +100,7 @@ export interface SourceUpdateEvent {
     readonly type: "update";
     readonly sourceId: string;
     readonly sourceName: string;
-    readonly suspicious: boolean;
+    readonly suspicious?: boolean;
 }
 
 /**

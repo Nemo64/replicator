@@ -2,7 +2,10 @@ import Ajv, {ValidateFunction} from "ajv";
 import addFormats from "ajv-formats";
 import {dirname, join} from "path";
 import {Options} from "../util/options";
-import {DriverContext, Format, ViewUpdate} from "./types";
+import {DriverContext, Format, SourceEvent, ViewUpdate} from "./types";
+
+const ajv = new Ajv({allErrors: true});
+addFormats(ajv);
 
 export class JsonFormat implements Format {
     private readonly indention: number;
@@ -14,8 +17,6 @@ export class JsonFormat implements Format {
 
         const schemaPath = options.optional('schema', {type: 'string', nullable: true}, null);
         if (schemaPath && context) {
-            const ajv = new Ajv({allErrors: true});
-            addFormats(ajv);
             this.schemaPath = join(dirname(context.configPath), schemaPath);
             try {
                 this.validator = ajv.compile(require(this.schemaPath));
@@ -29,14 +30,14 @@ export class JsonFormat implements Format {
         }
     }
 
-    async readSource(reader: NodeJS.ReadableStream): Promise<any> {
+    async readSource(event: SourceEvent, reader: NodeJS.ReadableStream): Promise<any> {
         const data = await this.read(reader);
-        this.validate(data);
+        this.validate(data, `${event.sourceId}#`);
         return data;
     }
 
     async updateView(update: ViewUpdate, writer: NodeJS.WritableStream, reader?: NodeJS.ReadableStream): Promise<number> {
-        this.validate(update.entries);
+        this.validate(update.entries, `${update.viewId}#`);
 
         const view = reader ? await this.read(reader) : [];
         if (!Array.isArray(view)) {
@@ -64,16 +65,13 @@ export class JsonFormat implements Format {
         return JSON.parse(string);
     }
 
-    private validate(data: any) {
+    private validate(data: any, viewId: string) {
         if (!this.validator) {
             return;
         }
 
-        this.validator(data);
-
-        if (this.validator.errors && this.validator.errors.length > 0) {
-            const errors = this.validator.errors.map(error => `- ${error.instancePath}: ${error.message}`);
-            throw new Error(`JSON Schema: ${this.schemaPath}\n${errors.join("\n")}`);
+        if (!this.validator(data)) {
+            throw new Error(`JSON Schema: ${this.schemaPath}\n${ajv.errorsText(this.validator.errors, {separator: "\n", dataVar: viewId})}`)
         }
     }
 }
