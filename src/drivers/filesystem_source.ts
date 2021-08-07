@@ -1,9 +1,9 @@
 import * as chokidar from "chokidar";
 import {constants as fs, createReadStream} from "fs";
-import {copyFile, mkdir, stat} from "fs/promises";
+import {copyFile, mkdir, rm, stat} from "fs/promises";
 import * as globParent from "glob-parent";
 import {Stats} from "node:fs";
-import {basename, dirname, extname, join, relative} from "path";
+import {dirname, extname, join, relative} from "path";
 import {performance} from "perf_hooks";
 import {AsyncMapQueue} from "../util/async_map_queue";
 import {Options} from "../util/options";
@@ -55,6 +55,8 @@ export class FilesystemSource implements Source {
         });
 
         const update = async (path: string, existingStats?: Stats) => {
+            const sourceId = this.id(path);
+            const sourceName = this.name;
             const [previousStats, currentStats] = await Promise.all([
                 stat(this.shadowPath(path)).catch(ignoreError('ENOENT')),
                 existingStats ?? stat(path).catch(ignoreError('ENOENT')),
@@ -64,25 +66,12 @@ export class FilesystemSource implements Source {
                 const suspicious = previousStats.mtime.getTime() < this.configTime.getTime();
                 const modified = previousStats.mtime.getTime() < currentStats.mtime.getTime();
                 if (modified || suspicious) {
-                    queue.set(path, {
-                        type: "update",
-                        sourceId: this.id(path),
-                        sourceName: this.name,
-                        suspicious,
-                    });
+                    queue.set(path, {type: "update", sourceId, sourceName, suspicious});
                 }
             } else if (previousStats) {
-                queue.set(path, {
-                    type: "delete",
-                    sourceId: this.id(path),
-                    sourceName: this.name,
-                });
+                queue.set(path, {type: "delete", sourceId, sourceName});
             } else if (currentStats) {
-                queue.set(path, {
-                    type: "insert",
-                    sourceId: this.id(path),
-                    sourceName: this.name,
-                });
+                queue.set(path, {type: "insert", sourceId, sourceName});
             }
         };
 
@@ -107,7 +96,11 @@ export class FilesystemSource implements Source {
             const change = {...event, previousData, currentData} as SourceChange;
             const result = handler(change);
 
-            await copyFile(sourcePath, shadowPath, fs.COPYFILE_FICLONE);
+            if (event.type === 'delete') {
+                await rm(shadowPath).catch(ignoreError('ENOENT'));
+            } else {
+                await copyFile(sourcePath, shadowPath, fs.COPYFILE_FICLONE);
+            }
 
             return result;
         } catch (e) {
