@@ -7,7 +7,7 @@ import {dirname, extname, join, relative} from "path";
 import {performance} from "perf_hooks";
 import {AsyncMapQueue} from "../util/async_map_queue";
 import {Options} from "../util/options";
-import {ChangeHandler, DriverContext, Format, Source, SourceChange, SourceEvent} from "./types";
+import {ChangeHandler, Environment, Format, Source, SourceChange, SourceEvent} from "./types";
 
 /**
  * This source driver uses the os filesystem.
@@ -27,22 +27,22 @@ export class FilesystemSource implements Source {
     private readonly name: string;
     private readonly path: string;
     private readonly root: string;
-    private readonly configPath: string;
-    private readonly configTime: Date;
+    private readonly lastConfigChange: Date;
+    private readonly shadowDirectory: string;
     private readonly format: Format;
 
-    constructor(options: Options, context: DriverContext) {
+    constructor(options: Options, environment: Environment) {
         this.name = options.require('name', {type: 'string'});
-        this.path = join(dirname(context.configPath), options.require('path', {type: 'string'}));
+        this.path = join(environment.workingDirectory, options.require('path', {type: 'string'}));
         this.root = globParent(this.path);
-        this.configPath = context.configPath;
-        this.configTime = context.configTime;
+        this.lastConfigChange = environment.lastConfigChange;
+        this.shadowDirectory = options.optional('shadow', {type: 'string'}, join(this.root, '.shadow'));
 
         const format = options.optional('format', {type: 'string'}, () => extname(this.path).slice(1));
-        if (!context.drivers.format.hasOwnProperty(format)) {
+        if (!environment.drivers.format.hasOwnProperty(format)) {
             throw new Error(`Format ${JSON.stringify(format)} is unknown. You might want to specify the format option explicitly.`);
         }
-        this.format = new context.drivers.format[format](options, context);
+        this.format = new environment.drivers.format[format](options, environment);
     }
 
     watch(): AsyncIterable<SourceEvent> {
@@ -63,15 +63,16 @@ export class FilesystemSource implements Source {
             ]);
 
             if (previousStats && currentStats) {
-                const suspicious = previousStats.mtime.getTime() < this.configTime.getTime();
+                const configChanged = previousStats.mtime.getTime() < this.lastConfigChange.getTime();
                 const modified = previousStats.mtime.getTime() < currentStats.mtime.getTime();
-                if (modified || suspicious) {
-                    queue.set(path, {type: "update", sourceId, sourceName, suspicious});
+                if (modified || configChanged) {
+                    queue.set(path, {type: "update", sourceId, sourceName, configChanged});
                 }
             } else if (previousStats) {
-                queue.set(path, {type: "delete", sourceId, sourceName});
+                const configChanged = previousStats.mtime.getTime() < this.lastConfigChange.getTime();
+                queue.set(path, {type: "delete", sourceId, sourceName, configChanged});
             } else if (currentStats) {
-                queue.set(path, {type: "insert", sourceId, sourceName});
+                queue.set(path, {type: "insert", sourceId, sourceName, configChanged: false});
             }
         };
 
@@ -114,7 +115,7 @@ export class FilesystemSource implements Source {
     }
 
     private shadowPath(path: string): string {
-        return `${dirname(this.configPath)}/.shadow/${this.name}/${relative(this.root, path)}`;
+        return join(this.shadowDirectory, this.id(path));
     }
 }
 

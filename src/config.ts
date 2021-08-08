@@ -1,5 +1,5 @@
 import Ajv from "ajv";
-import {DriverContext, Source, Target} from "./drivers/types";
+import {Environment, Source, Target} from "./drivers/types";
 import {parseStructure} from "./formatter";
 import {PatternObject} from "./pattern";
 import {Options} from "./util/options";
@@ -37,7 +37,7 @@ const ajv = new Ajv({allErrors: true});
 const schema = require('../schemas/config.json');
 const schemaValidate = ajv.compile<Config>(schema);
 
-export function validate(config: any, context: DriverContext): config is Config {
+export function validate(config: any, context: Environment): config is Config {
     if (!schemaValidate(config)) {
         throw new Error(ajv.errorsText(schemaValidate.errors, {dataVar: 'configuration', separator: "\n"}));
     }
@@ -69,7 +69,7 @@ export function validate(config: any, context: DriverContext): config is Config 
     return true;
 }
 
-export function parse(config: any, context: DriverContext): Map<string, Mapping> {
+export function parse(config: any, context: Environment): Map<string, Mapping> {
     const result = new Map;
     if (!validate(config, context)) {
         return result;

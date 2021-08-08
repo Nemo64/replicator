@@ -61,16 +61,16 @@ export interface Format {
     updateView(update: ViewUpdate, writer: NodeJS.WritableStream, reader?: NodeJS.ReadableStream): Promise<number>;
 }
 
-export type SourceConstructor = new (options: Options, context: DriverContext) => Source;
-export type TargetConstructor = new (options: Options, context: DriverContext) => Target;
-export type FormatConstructor = new (options: Options, context: DriverContext) => Format;
+export type SourceConstructor = new (options: Options, context: Environment) => Source;
+export type TargetConstructor = new (options: Options, context: Environment) => Target;
+export type FormatConstructor = new (options: Options, context: Environment) => Format;
 
 /**
  * These are context options that tell drivers a few things about the environment they are in.
  */
-export interface DriverContext {
-    readonly configPath: string;
-    readonly configTime: Date;
+export interface Environment {
+    readonly workingDirectory: string;
+    readonly lastConfigChange: Date;
     readonly drivers: {
         readonly source: Record<string, SourceConstructor>,
         readonly target: Record<string, TargetConstructor>,
@@ -82,25 +82,11 @@ export interface DriverContext {
  * This is an event, usually created by {@see Source.watch}.
  * But it is intended that an event can be triggered by other means.
  */
-export type SourceEvent = SourceInsertEvent | SourceDeleteEvent | SourceUpdateEvent;
-
-export interface SourceInsertEvent {
-    readonly type: "insert";
+export interface SourceEvent {
+    readonly type: "insert" | "update" | "delete";
     readonly sourceId: string;
     readonly sourceName: string;
-}
-
-export interface SourceDeleteEvent {
-    readonly type: "delete";
-    readonly sourceId: string;
-    readonly sourceName: string;
-}
-
-export interface SourceUpdateEvent {
-    readonly type: "update";
-    readonly sourceId: string;
-    readonly sourceName: string;
-    readonly suspicious?: boolean;
+    readonly configChanged: boolean;
 }
 
 /**
@@ -108,17 +94,20 @@ export interface SourceUpdateEvent {
  */
 export type SourceChange = SourceInsertChange | SourceDeleteChange | SourceUpdateChange
 
-export interface SourceInsertChange extends SourceInsertEvent {
+export interface SourceInsertChange extends SourceEvent {
+    readonly type: "insert";
     readonly currentData: any;
 }
 
-export interface SourceDeleteChange extends SourceDeleteEvent {
-    readonly previousData: any;
-}
-
-export interface SourceUpdateChange extends SourceUpdateEvent {
+export interface SourceUpdateChange extends SourceEvent {
+    readonly type: "update";
     readonly previousData: any;
     readonly currentData: any;
+}
+
+export interface SourceDeleteChange extends SourceEvent {
+    readonly type: "delete";
+    readonly previousData: any;
 }
 
 export type ChangeHandler<R> = (change: SourceChange) => Promise<R>;

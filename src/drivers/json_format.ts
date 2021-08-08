@@ -1,8 +1,8 @@
 import Ajv, {ValidateFunction} from "ajv";
 import addFormats from "ajv-formats";
-import {dirname, join} from "path";
+import {join} from "path";
 import {Options} from "../util/options";
-import {DriverContext, Format, SourceEvent, ViewUpdate} from "./types";
+import {Environment, Format, SourceEvent, ViewUpdate} from "./types";
 
 const ajv = new Ajv({allErrors: true});
 addFormats(ajv);
@@ -12,12 +12,12 @@ export class JsonFormat implements Format {
     private readonly validator: ValidateFunction | null;
     private readonly schemaPath: string | null;
 
-    constructor(options: Options, context?: DriverContext) {
+    constructor(options: Options, context?: Environment) {
         this.indention = options.optional('indention', {type: 'number'}, 2);
 
         const schemaPath = options.optional('schema', {type: 'string', nullable: true}, null);
         if (schemaPath && context) {
-            this.schemaPath = join(dirname(context.configPath), schemaPath);
+            this.schemaPath = join(context.workingDirectory, schemaPath);
             try {
                 this.validator = ajv.compile(require(this.schemaPath));
             } catch (e) {
@@ -72,7 +72,10 @@ export class JsonFormat implements Format {
         }
 
         if (!this.validator(data)) {
-            throw new Error(`JSON Schema: ${this.schemaPath}\n${ajv.errorsText(this.validator.errors, {separator: "\n", dataVar: viewId})}`)
+            throw new Error(`JSON Schema: ${this.schemaPath}\n${ajv.errorsText(this.validator.errors, {
+                separator: "\n",
+                dataVar: viewId,
+            })}`);
         }
     }
 }

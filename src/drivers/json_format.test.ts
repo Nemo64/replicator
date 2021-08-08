@@ -2,12 +2,12 @@ import {test} from "@jest/globals";
 import {Readable, Writable} from "stream";
 import {Options} from "../util/options";
 import {JsonFormat} from "./json_format";
-import {SourceEvent, SourceInsertEvent} from "./types";
+import {SourceEvent} from "./types";
 
 test(`parse.json`, async () => {
     const stream = Readable.from('{"data": "value"}');
     const jsonFormat = new JsonFormat(new Options({}));
-    const event: SourceInsertEvent = {type: "insert", sourceId: "test", sourceName: "test"};
+    const event: SourceEvent = {type: "insert", sourceId: "test", sourceName: "test", configChanged: false};
     const result = await jsonFormat.readSource(event, stream);
     expect(result).toEqual({data: 'value'});
 });

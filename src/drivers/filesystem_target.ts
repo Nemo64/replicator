@@ -4,7 +4,7 @@ import * as globParent from "glob-parent";
 import {basename, dirname, extname, join, relative} from "path";
 import {parse, PatternFunction} from "../pattern";
 import {Options} from "../util/options";
-import {DriverContext, Format, Target, ViewUpdate} from "./types";
+import {Environment, Format, Target, ViewUpdate} from "./types";
 
 /**
  * This target driver uses the os filesystem.
@@ -21,8 +21,8 @@ export class FilesystemTarget implements Target {
     private readonly root: string;
     private readonly format: Format;
 
-    constructor(options: Options, context: DriverContext) {
-        const stringPath = join(dirname(context.configPath), options.require('path', {type: 'string'}));
+    constructor(options: Options, context: Environment) {
+        const stringPath = join(context.workingDirectory, options.require('path', {type: 'string'}));
         this.root = globParent(stringPath);
         this.path = parse(relative(this.root, stringPath));
 

@@ -19,9 +19,9 @@ export function* generateViews(change: SourceChange, mapping: ViewMapping): Iter
             nextEntriesByView.set(viewId, new Map());
 
             // compute the old view's hash to avoid unnecessary updates unless:
-            // - the change is a delete, in which case everything will be deleted anyways
-            // - the change is suspicious, eg. when the configuration has changed
-            if (change.type !== 'delete' && !change.suspicious) {
+            // - the change is a delete: where everything will be deleted anyways
+            // - the configuration has changed: to make sure that all views used the newest config
+            if (change.type !== 'delete' && !change.configChanged) {
                 const entry = mapping.format(context);
                 prevEntriesByView.add(viewId, hash(entry));
             }
