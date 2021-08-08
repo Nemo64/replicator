@@ -44,7 +44,7 @@ export class FilesystemTarget implements Target {
 
     async update(update: ViewUpdate): Promise<void> {
         const path = join(this.root, update.viewId);
-        const tmpPath = `${dirname(path)}/${basename(path)}~`;
+        const tmpPath = `${dirname(path)}/.${basename(path)}~`;
 
         const [file, tmpFile] = await Promise.all([
             open(path, 'r').catch(ignoreError('ENOENT')),
@@ -115,8 +115,16 @@ async function openExclusive(path: string, maxWait = 10000): Promise<FileHandle>
 
             // ErrorExists means someone else is writing at this point so retry later
             if (e?.code === 'EEXIST') {
-                timeout = (await stat(path)).mtime.getTime() + maxWait;
-                await new Promise(resolve => setTimeout(resolve, Math.random() * 100));
+                try {
+                    const stats = await stat(path);
+                    timeout = stats.mtime.getTime() + maxWait;
+                    await new Promise(resolve => setTimeout(resolve, Math.random() * 100))
+                } catch (e) {
+                    if (e?.code !== 'ENOENT') {
+                        throw e;
+                    }
+                }
+
                 continue;
             }
 
@@ -128,9 +136,6 @@ async function openExclusive(path: string, maxWait = 10000): Promise<FileHandle>
     return await open(path, fs.O_WRONLY | fs.O_CREAT | fs.O_TRUNC);
 }
 
-/**
- * Ignores the
- */
 function ignoreError(code: string): (e: NodeJS.ErrnoException) => Promise<void> {
     return e => e?.code === code ? Promise.resolve() : Promise.reject(e);
 }
