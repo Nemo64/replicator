@@ -1,4 +1,4 @@
-import {constants as fs, createReadStream, createWriteStream} from "fs";
+import {constants as fs, createReadStream, createWriteStream, write} from "fs";
 import {FileHandle, mkdir, open, rename, rm, rmdir, stat} from "fs/promises";
 import * as globParent from "glob-parent";
 import {basename, dirname, extname, join, relative} from "path";
@@ -46,6 +46,7 @@ export class FilesystemTarget implements Target {
         const path = join(this.root, update.viewId);
         const tmpPath = `${dirname(path)}/.${basename(path)}~`;
 
+        // TODO, if just 1 succeeds, than this file descriptor won't be closed
         const [file, tmpFile] = await Promise.all([
             open(path, 'r').catch(ignoreError('ENOENT')),
             openExclusive(tmpPath),
@@ -55,7 +56,10 @@ export class FilesystemTarget implements Target {
             const reader = file ? createReadStream(path, {fd: file, autoClose: false}) : undefined;
             const writer = createWriteStream(tmpPath, {fd: tmpFile, autoClose: false});
             const entryCount = await this.format.updateView(update, writer, reader);
+            reader?.close();
+            writer.close();
             if (entryCount > 0) {
+                await new Promise(resolve => writer.on('finish', resolve));
                 await tmpFile.datasync();
                 await rename(tmpPath, path);
             } else {
@@ -64,7 +68,6 @@ export class FilesystemTarget implements Target {
                 await deleteEmptyDirs(this.root, path);
             }
         } catch (e) {
-            // TODO deleting a file before closing it probably does not work on windows
             rm(tmpPath).catch(e => console.error(e));
             e.message = `Failed to update view ${JSON.stringify(path)} from source ${JSON.stringify(update.event.sourceId)}\n${e.message}`;
             throw e;
@@ -99,7 +102,7 @@ async function deleteEmptyDirs(root: string, path: string): Promise<boolean> {
  * If the file already exists, then this implementation will wait up to "maxWait" milliseconds for it to be deleted.
  * If this does not happen, then the file will just be opened for write.
  */
-async function openExclusive(path: string, maxWait = 10000): Promise<FileHandle> {
+async function openExclusive(path: string, maxWait = 60000): Promise<FileHandle> {
     let timeout = Date.now() + maxWait;
 
     while (timeout > Date.now()) {
@@ -118,7 +121,7 @@ async function openExclusive(path: string, maxWait = 10000): Promise<FileHandle>
                 try {
                     const stats = await stat(path);
                     timeout = stats.mtime.getTime() + maxWait;
-                    await new Promise(resolve => setTimeout(resolve, Math.random() * 100))
+                    await new Promise(resolve => setTimeout(resolve, Math.random() * 100));
                 } catch (e) {
                     if (e?.code !== 'ENOENT') {
                         throw e;
