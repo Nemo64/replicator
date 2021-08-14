@@ -19,5 +19,5 @@ for (let i = 0; i < 100; ++i) {
         });
     }
 
-    writeFile(`${__dirname}/source/c${i}.json`, JSON.stringify(calendar));
+    writeFile(`${__dirname}/source/c${i}.json`, JSON.stringify(calendar, null, 2));
 }
