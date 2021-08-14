@@ -23,6 +23,41 @@ and not a completely new way how to interact with data, like most databases.
 That way, this project can profit off of decades of persistence experience (raid, SAM, nfs, rsync, mounts etc)
 and existing deliver systems (apache, nginx, CDN's etc) without reinventing the wheel.
 
+## Usage
+
+The package is not yet published to npm and the name is already used.
+
+### cli usage
+
+```shell
+npm install -g replicator # name not final
+replicator [path to config file]
+```
+
+If you plan to use this, you should
+[create a unit file](https://nodesource.com/blog/running-your-node-js-app-with-systemd-part-1/#creatingasystemdservicefile)
+to ensure the service is running.
+
+### programmatic usage
+
+```shell
+npm install replicator # name not final
+```
+
+```js
+import {parseConfiguration, processEvent, watchForEvents} from "replicator";
+
+const config = parseConfiguration("[path to config file]");
+for await (const event of watchForEvents(config)) {
+    processEvent(config, event).then(console.log, console.error);
+}
+```
+
+This pattern gives you a few options. You can:
+- put this in your application, so you only have 1 executable.
+- build your own daemon, that distributes the events to multiple processes/servers.
+- create [events](src/drivers/types.ts) though some other means, like a http endpoint.
+
 ## calendar example
 
 This example is available in the [examples/](examples) folder to play around with.

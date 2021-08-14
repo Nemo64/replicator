@@ -1,11 +1,11 @@
 import * as hash from "object-hash";
 import {ViewMapping} from "./config";
-import {SourceChange} from "./drivers/types";
+import {Change} from "./drivers/types";
 import {PatternObject} from "./pattern";
 import {MapMap, MapSet} from "./util/map_map";
 import {permuteMatrix} from "./util/permute";
 
-export function* generateViews(change: SourceChange, mapping: ViewMapping): Iterable<[string, PatternObject[]]> {
+export function* generateViews(change: Change, mapping: ViewMapping): Iterable<[string, PatternObject[]]> {
     const prevEntriesByView = new MapSet<string, string>();
     const nextEntriesByView = new MapMap<string, string, PatternObject>();
 

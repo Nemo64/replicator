@@ -8,7 +8,7 @@ import {performance} from "perf_hooks";
 import {AsyncMapQueue} from "../util/async_map_queue";
 import {Options} from "../util/options";
 import {loadDriver} from "./loader";
-import {ChangeHandler, Environment, Source, SourceChange, SourceEvent, SourceFormat} from "./types";
+import {Change, Environment, Event, Source, SourceFormat} from "./types";
 
 /**
  * This source driver uses the os filesystem.
@@ -50,8 +50,8 @@ export class FilesystemSource implements Source {
         return new FilesystemSource(name, path, shadowDirectory, formatDriver, environment.lastConfigChange);
     }
 
-    watch(): AsyncIterable<SourceEvent> {
-        const queue = new AsyncMapQueue<string, SourceEvent>();
+    watch(): AsyncIterable<Event> {
+        const queue = new AsyncMapQueue<string, Event>();
         const watcher = chokidar.watch(this.path, {awaitWriteFinish: true});
         const startTime = performance.now();
 
@@ -89,7 +89,7 @@ export class FilesystemSource implements Source {
         return queue;
     }
 
-    async process<R>(event: SourceEvent, handler: ChangeHandler<R>): Promise<R> {
+    async process<R>(event: Event, handler: (change: Change) => Promise<R>): Promise<R> {
         try {
             const sourcePath = join(this.rootDirectory, event.sourceId);
             const shadowPath = this.shadowPath(sourcePath);
@@ -100,7 +100,7 @@ export class FilesystemSource implements Source {
                 event.type === 'insert' && mkdir(dirname(shadowPath), {recursive: true}),
             ]);
 
-            const change = {...event, previousData, currentData} as SourceChange;
+            const change = {...event, previousData, currentData} as Change;
             const result = handler(change);
 
             if (event.type === 'delete') {
@@ -116,7 +116,7 @@ export class FilesystemSource implements Source {
         }
     }
 
-    private async read(event: SourceEvent, path: string) {
+    private async read(event: Event, path: string) {
         const reader = createReadStream(path);
         try {
             return await this.format.readSource(event, reader);

@@ -2,12 +2,12 @@ import {test} from "@jest/globals";
 import {Readable, Writable} from "stream";
 import {Options} from "../util/options";
 import JsonFormat from "./json_format";
-import {SourceEvent} from "./types";
+import {Event} from "./types";
 
 test(`parse.json`, async () => {
     const stream = Readable.from('{"data": "value"}');
     const jsonFormat = new JsonFormat(new Options({}));
-    const event: SourceEvent = {type: "insert", sourceId: "test", sourceName: "test", configChanged: false};
+    const event: Event = {type: "insert", sourceId: "test", sourceName: "test", configChanged: false};
     const result = await jsonFormat.readSource(event, stream);
     expect(result).toEqual({data: 'value'});
 });
@@ -46,7 +46,7 @@ for (const {sourceId, original, expected, entries} of modifyCases) {
             next();
         });
 
-        const event = {type: "update", sourceId, sourceName: 'test'} as SourceEvent;
+        const event = {type: "update", sourceId, sourceName: 'test'} as Event;
         const update = {event, viewId: '', entries};
         await new JsonFormat(new Options({indention: 0})).updateView(update, writable, readable);
         expect(writable._write).toHaveBeenCalled();

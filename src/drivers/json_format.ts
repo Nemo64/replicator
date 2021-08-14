@@ -2,7 +2,7 @@ import Ajv, {ValidateFunction} from "ajv";
 import addFormats from "ajv-formats";
 import {join} from "path";
 import {Options} from "../util/options";
-import {Environment, SourceEvent, SourceFormat, TargetFormat, ViewUpdate} from "./types";
+import {Environment, Event, SourceFormat, TargetFormat, ViewUpdate} from "./types";
 
 const ajv = new Ajv({allErrors: true});
 addFormats(ajv);
@@ -30,7 +30,7 @@ export class JsonFormat implements SourceFormat, TargetFormat {
         }
     }
 
-    async readSource(event: SourceEvent, reader: NodeJS.ReadableStream): Promise<any> {
+    async readSource(event: Event, reader: NodeJS.ReadableStream): Promise<any> {
         const data = await this.read(reader);
         this.validate(data, `${event.sourceId}#`);
         return data;

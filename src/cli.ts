@@ -18,10 +18,11 @@ async function execute(argv: string[]) {
     }
 
     const config = await parseConfiguration(configFile);
-    const events = watchForEvents(config);
-    for await (const event of events) {
+    for await (const event of watchForEvents(config)) {
         processEvent(config, event)
-            .then(update => console.log(`${update.type} of ${update.sourceName} ${green(update.sourceId)} updated in ${update.updateTime.toFixed(2).padStart(8)}ms: ${update.viewIds.map(green).join(', ')}`))
+            .then(({sourceId, sourceName, type, updateTime, viewIds}) => {
+                console.log(`${type} of ${sourceName} ${green(sourceId)} updated in ${updateTime.toFixed(2).padStart(8)}ms: ${viewIds.map(green).join(', ')}`);
+            })
             .catch(console.error);
     }
 }

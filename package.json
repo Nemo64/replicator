@@ -22,7 +22,7 @@
         "node": ">=14"
     },
     "scripts": {
-        "build": "tsc --build --clean && tsc --build",
+        "build": "rm -r dist && tsc --build",
         "check": "tsc --noEmit",
         "start": "ts-node-dev --respawn --transpile-only --watch 'examples/*/replicator.json' src/cli.ts",
         "test": "jest"

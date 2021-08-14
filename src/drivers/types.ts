@@ -19,19 +19,30 @@ export type DriverType = "source" | "target" | "source_format" | "target_format"
 export type Initializer = (type: DriverType, options: Options, context: Environment) => Promise<Source | Target | SourceFormat | TargetFormat>;
 
 /**
+ * This is an event, usually created by {@see Source.watch}.
+ * But it is intended that an event can be triggered by other means.
+ */
+export interface Event {
+    readonly type: "insert" | "update" | "delete";
+    readonly sourceId: string;
+    readonly sourceName: string;
+    readonly configChanged: boolean;
+}
+
+/**
  * Source driver
  */
 export interface Source {
     /**
      * Watch the source for changes.
      */
-    watch(): AsyncIterable<SourceEvent>;
+    watch(): AsyncIterable<Event>;
 
     /**
-     * Process a {@see SourceEvent} using the given {@see ChangeHandler}.
+     * Process a {@see Event} using the given function.
      * The previous data must stay available as long as the change handler has not resolved.
      */
-    process<R>(change: SourceEvent, handler: ChangeHandler<R>): Promise<R>;
+    process<R>(change: Event, handler: (change: Change) => Promise<R>): Promise<R>;
 }
 
 /**
@@ -48,7 +59,7 @@ export interface Target {
 
     /**
      * Update the specified viewId with the given entries.
-     * It is expected that this update replaces all entries from the same {@see SourceEvent.sourceId}.
+     * It is expected that this update replaces all entries from the same {@see Event.sourceId}.
      */
     update(update: ViewUpdate): Promise<void>;
 }
@@ -63,7 +74,7 @@ export interface SourceFormat {
      *
      * @return any structured format that is appropriate for further processing though the pattern formatter.
      */
-    readSource(event: SourceEvent, reader: NodeJS.ReadableStream): Promise<any>;
+    readSource(event: Event, reader: NodeJS.ReadableStream): Promise<any>;
 }
 
 /**
@@ -77,7 +88,7 @@ export interface TargetFormat {
      *
      * It is not required that the Format implements view merging but it is strongly expected.
      * If view merging is suppoted, then it is expected that the read stream is copied over to the write stream,
-     * but with all entries from the {@see SourceEvent.sourceId} replaced with the given entries.
+     * but with all entries from the {@see Event.sourceId} replaced with the given entries.
      *
      * @return {Promise<number>} The number of entries in that view after the update.
      *     If this number is 0, then the view is usually deleted after the update.
@@ -94,44 +105,31 @@ export interface Environment {
 }
 
 /**
- * This is an event, usually created by {@see Source.watch}.
- * But it is intended that an event can be triggered by other means.
- */
-export interface SourceEvent {
-    readonly type: "insert" | "update" | "delete";
-    readonly sourceId: string;
-    readonly sourceName: string;
-    readonly configChanged: boolean;
-}
-
-/**
  * This is the actual change information you have during the change processing.
  */
-export type SourceChange = SourceInsertChange | SourceDeleteChange | SourceUpdateChange
+export type Change = InsertChange | DeleteChange | UpdateChange
 
-export interface SourceInsertChange extends SourceEvent {
+interface InsertChange extends Event {
     readonly type: "insert";
     readonly currentData: any;
 }
 
-export interface SourceUpdateChange extends SourceEvent {
+interface UpdateChange extends Event {
     readonly type: "update";
     readonly previousData: any;
     readonly currentData: any;
 }
 
-export interface SourceDeleteChange extends SourceEvent {
+interface DeleteChange extends Event {
     readonly type: "delete";
     readonly previousData: any;
 }
-
-export type ChangeHandler<R> = (change: SourceChange) => Promise<R>;
 
 /**
  * All the information needed to execute a view update.
  */
 export interface ViewUpdate {
     readonly viewId: string;
-    readonly event: SourceEvent;
+    readonly event: Event;
     readonly entries: any[];
 }
