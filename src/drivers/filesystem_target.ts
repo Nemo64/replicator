@@ -66,7 +66,7 @@ export class FilesystemTarget implements Target {
 
             if (entryCount > 0) {
                 await new Promise(resolve => writer.end(resolve));
-                await tmpFile.sync();
+                await tmpFile.datasync();
                 await closeFiles('after update');
                 await rename(tmpPath, path);
             } else {
