@@ -52,8 +52,9 @@ export class FilesystemSource implements Source {
 
     watch(): AsyncIterable<SourceEvent> {
         const queue = new AsyncMapQueue<string, SourceEvent>();
-        const watcher = chokidar.watch(this.path);
+        const watcher = chokidar.watch(this.path, {awaitWriteFinish: true});
         const startTime = performance.now();
+
         console.log('watch start', this.path);
         watcher.on("ready", () => {
             console.log('watch ready', this.path, performance.now() - startTime);

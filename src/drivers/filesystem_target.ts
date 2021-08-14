@@ -1,4 +1,4 @@
-import {constants as fs, createReadStream, createWriteStream, write} from "fs";
+import {createReadStream, createWriteStream} from "fs";
 import {FileHandle, mkdir, open, rename, rm, rmdir, stat} from "fs/promises";
 import * as globParent from "glob-parent";
 import {basename, dirname, extname, resolve, relative} from "path";
@@ -51,34 +51,35 @@ export class FilesystemTarget implements Target {
         const path = resolve(this.root, update.viewId);
         const tmpPath = `${dirname(path)}/.${basename(path)}~`;
 
-        // TODO, if just 1 succeeds, than this file descriptor won't be closed
-        const [file, tmpFile] = await Promise.all([
-            open(path, 'r').catch(ignoreError('ENOENT')),
-            openExclusive(tmpPath),
+        // TODO, if just 1 succeeds, than this file descriptor won't be explicitly closed (node will do it on gc though)
+        const tmpFile = await openExclusive(tmpPath); // open this first to ensure the lock is valid
+        const file = await open(path, 'r').catch(ignoreError('ENOENT'));
+        const closeFiles = (notice: string) => Promise.all([
+            file?.close().catch(e => console.error(`failed to close ${path} ${notice}`, e)),
+            tmpFile.close().catch(e => console.error(`failed to close ${tmpPath} ${notice}`, e)),
         ]);
 
         try {
-            const reader = file ? createReadStream(path, {fd: file, autoClose: false}) : undefined;
-            const writer = createWriteStream(tmpPath, {fd: tmpFile, autoClose: false});
+            const reader = file ? createReadStream(path, {fd: file.fd, autoClose: false}) : undefined;
+            const writer = createWriteStream(tmpPath, {fd: tmpFile.fd, autoClose: false});
             const entryCount = await this.format.updateView(update, writer, reader);
-            reader?.close();
-            writer.close();
+
             if (entryCount > 0) {
-                await new Promise(resolve => writer.on('finish', resolve));
-                await tmpFile.datasync();
+                await new Promise(resolve => writer.end(resolve));
+                await tmpFile.sync();
+                await closeFiles('after update');
                 await rename(tmpPath, path);
             } else {
+                await closeFiles('before delete');
                 await rm(path);
                 await rm(tmpPath); // must be deleted after the real file, since this is also the write lock
                 await deleteEmptyDirs(this.root, path);
             }
         } catch (e) {
-            rm(tmpPath).catch(e => console.error(e));
+            await closeFiles('after failure');
+            await rm(tmpPath).catch(e => console.error(`failed to cleanup ${tmpPath}`, e));
             e.message = `Failed to update view ${JSON.stringify(path)} from source ${JSON.stringify(update.event.sourceId)}\n${e.message}`;
             throw e;
-        } finally {
-            file && file.close().catch(e => console.error(e));
-            tmpFile.close().catch(e => console.error(e));
         }
     }
 }
@@ -111,12 +112,14 @@ async function deleteEmptyDirs(root: string, path: string): Promise<boolean> {
 async function openExclusive(path: string, maxWait = 60000): Promise<FileHandle> {
     let timeout = Date.now() + maxWait;
 
-    while (timeout > Date.now()) {
+    do {
         try {
-            return await open(path, fs.O_WRONLY | fs.O_CREAT | fs.O_EXCL);
+
+            return await open(path, 'wx');
+
         } catch (e) {
 
-            // ErrorNoEntity means the directory did not exist so try to create it
+            // ErrorNoEntity usually means the directory did not exist so try to create it
             if (e?.code === 'ENOENT') {
                 await mkdir(dirname(path), {recursive: true});
                 continue;
@@ -125,24 +128,35 @@ async function openExclusive(path: string, maxWait = 60000): Promise<FileHandle>
             // ErrorExists means someone else is writing at this point so retry later
             if (e?.code === 'EEXIST') {
                 try {
+                    // get the mtime from the existing file and adjust the timeout accordingly.
+                    // If the file existed for longer than maxWait, then we can timeout immediately.
+                    // If the file gets updated constantly, then it is actively used and we must not open it.
                     const stats = await stat(path);
                     timeout = stats.mtime.getTime() + maxWait;
-                    await new Promise(resolve => setTimeout(resolve, Math.random() * 100));
+
+                    // wait for a somewhat random time to try again
+                    await new Promise(resolve => setTimeout(resolve, Math.random() * 100 + 100));
+                    continue;
+
                 } catch (e) {
-                    if (e?.code !== 'ENOENT') {
+                    // The file can disappear between trying to open it and checking it's stats.
+                    // In that case just try again immediately (since the file is presumably gone).
+                    if (e?.code === 'ENOENT') {
+                        continue;
+                    } else {
+                        e.message = `Failure after attempt to open.\n${e.message}`;
                         throw e;
                     }
                 }
-
-                continue;
             }
 
             throw e;
         }
-    }
+    } while (timeout > Date.now());
 
-    // give up, try to open normally and accept errors
-    return await open(path, fs.O_WRONLY | fs.O_CREAT | fs.O_TRUNC);
+    // give up, try to open normally and accept errors.
+    // this usually just means that the file was stranded from another process.
+    return await open(path, 'w');
 }
 
 function ignoreError(code: string): (e: NodeJS.ErrnoException) => Promise<void> {
