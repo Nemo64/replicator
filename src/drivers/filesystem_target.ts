@@ -1,10 +1,11 @@
 import {constants as fs, createReadStream, createWriteStream, write} from "fs";
 import {FileHandle, mkdir, open, rename, rm, rmdir, stat} from "fs/promises";
 import * as globParent from "glob-parent";
-import {basename, dirname, extname, join, relative} from "path";
+import {basename, dirname, extname, resolve, relative} from "path";
 import {parse, PatternFunction} from "../pattern";
 import {Options} from "../util/options";
-import {Environment, Format, Target, ViewUpdate} from "./types";
+import {loadDriver} from "./loader";
+import {Environment, Target, TargetFormat, ViewUpdate} from "./types";
 
 /**
  * This target driver uses the os filesystem.
@@ -19,18 +20,22 @@ import {Environment, Format, Target, ViewUpdate} from "./types";
 export class FilesystemTarget implements Target {
     private readonly path: PatternFunction;
     private readonly root: string;
-    private readonly format: Format;
+    private readonly format: TargetFormat;
 
-    constructor(options: Options, context: Environment) {
-        const stringPath = join(context.workingDirectory, options.require('path', {type: 'string'}));
-        this.root = globParent(stringPath);
-        this.path = parse(relative(this.root, stringPath));
+    private constructor(path: string, format: TargetFormat) {
+        this.root = globParent(path);
+        this.path = parse(relative(this.root, path));
+        this.format = format;
+    }
 
-        const format = options.optional('format', {type: 'string'}, () => extname(stringPath).slice(1));
-        if (!context.drivers.format.hasOwnProperty(format)) {
-            throw new Error(`Format ${JSON.stringify(format)} is unknown. You might want to specify the format option explicitly.`);
-        }
-        this.format = new context.drivers.format[format](options, context);
+    /**
+     * Create this driver from configuration.
+     */
+    static async create(options: Options, environment: Environment): Promise<FilesystemTarget> {
+        const path = resolve(environment.workingDirectory, options.require('path'));
+        const format = options.optional('format') ?? `replicator:${extname(path).slice(1)}`;
+        const formatDriver = await loadDriver(format, 'target_format', options, environment);
+        return new FilesystemTarget(path, formatDriver);
     }
 
     id(data: any): string {
@@ -43,7 +48,7 @@ export class FilesystemTarget implements Target {
     }
 
     async update(update: ViewUpdate): Promise<void> {
-        const path = join(this.root, update.viewId);
+        const path = resolve(this.root, update.viewId);
         const tmpPath = `${dirname(path)}/.${basename(path)}~`;
 
         // TODO, if just 1 succeeds, than this file descriptor won't be closed
@@ -98,7 +103,8 @@ async function deleteEmptyDirs(root: string, path: string): Promise<boolean> {
 }
 
 /**
- * Creates a file at the given path.
+ * Creates a file at the given path in exclusive mode.
+ *
  * If the file already exists, then this implementation will wait up to "maxWait" milliseconds for it to be deleted.
  * If this does not happen, then the file will just be opened for write.
  */

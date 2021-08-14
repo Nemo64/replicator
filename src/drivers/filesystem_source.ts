@@ -7,7 +7,8 @@ import {dirname, extname, join, relative} from "path";
 import {performance} from "perf_hooks";
 import {AsyncMapQueue} from "../util/async_map_queue";
 import {Options} from "../util/options";
-import {ChangeHandler, Environment, Format, Source, SourceChange, SourceEvent} from "./types";
+import {loadDriver} from "./loader";
+import {ChangeHandler, Environment, Source, SourceChange, SourceEvent, SourceFormat} from "./types";
 
 /**
  * This source driver uses the os filesystem.
@@ -20,29 +21,33 @@ import {ChangeHandler, Environment, Format, Source, SourceChange, SourceEvent} f
  * If possible, the clone feature of copy-on-write filesystems is used to minimize the filesize overhead.
  * This makes it possible to detect deletions and execute minimal view updates.
  *
- * This driver does uses binary files so it uses a {@see Format}.
+ * This driver does uses binary files so it uses a {@see SourceFormat}.
  * The default format is determined by the file extension of the path option.
  */
 export class FilesystemSource implements Source {
-    private readonly name: string;
-    private readonly path: string;
-    private readonly root: string;
-    private readonly lastConfigChange: Date;
-    private readonly shadowDirectory: string;
-    private readonly format: Format;
 
-    constructor(options: Options, environment: Environment) {
-        this.name = options.require('name', {type: 'string'});
-        this.path = join(environment.workingDirectory, options.require('path', {type: 'string'}));
-        this.root = globParent(this.path);
-        this.lastConfigChange = environment.lastConfigChange;
-        this.shadowDirectory = options.optional('shadow', {type: 'string'}, join(this.root, '.shadow'));
+    private readonly rootDirectory: string;
 
-        const format = options.optional('format', {type: 'string'}, () => extname(this.path).slice(1));
-        if (!environment.drivers.format.hasOwnProperty(format)) {
-            throw new Error(`Format ${JSON.stringify(format)} is unknown. You might want to specify the format option explicitly.`);
-        }
-        this.format = new environment.drivers.format[format](options, environment);
+    private constructor(
+        private readonly name: string,
+        private readonly path: string,
+        private readonly shadowDirectory: string,
+        private readonly format: SourceFormat,
+        private readonly lastConfigChange: Date,
+    ) {
+        this.rootDirectory = globParent(this.path);
+    }
+
+    /**
+     * Create this driver from configuration.
+     */
+    static async create(options: Options, environment: Environment): Promise<FilesystemSource> {
+        const name = options.require('name');
+        const path = join(environment.workingDirectory, options.require('path'));
+        const format = options.optional('format') ?? `replicator:${extname(path).slice(1)}`;
+        const formatDriver = await loadDriver(format, 'source_format', options, environment);
+        const shadowDirectory = options.optional('shadow') ?? join(globParent(path), '.shadow');
+        return new FilesystemSource(name, path, shadowDirectory, formatDriver, environment.lastConfigChange);
     }
 
     watch(): AsyncIterable<SourceEvent> {
@@ -85,12 +90,12 @@ export class FilesystemSource implements Source {
 
     async process<R>(event: SourceEvent, handler: ChangeHandler<R>): Promise<R> {
         try {
-            const sourcePath = join(this.root, event.sourceId);
+            const sourcePath = join(this.rootDirectory, event.sourceId);
             const shadowPath = this.shadowPath(sourcePath);
 
             const [previousData, currentData] = await Promise.all([
-                event.type !== 'insert' && this.format.readSource(event, createReadStream(shadowPath)),
-                event.type !== 'delete' && this.format.readSource(event, createReadStream(sourcePath)),
+                event.type !== 'insert' && this.read(event, shadowPath),
+                event.type !== 'delete' && this.read(event, sourcePath),
                 event.type === 'insert' && mkdir(dirname(shadowPath), {recursive: true}),
             ]);
 
@@ -105,13 +110,22 @@ export class FilesystemSource implements Source {
 
             return result;
         } catch (e) {
-            e.message = `Failed to process event on ${join(this.root, event.sourceId)}\n${e.message}`;
+            e.message = `Failed to process event on ${join(this.rootDirectory, event.sourceId)}\n${e.message}`;
             throw e;
         }
     }
 
+    private async read(event: SourceEvent, path: string) {
+        const reader = createReadStream(path);
+        try {
+            return await this.format.readSource(event, reader);
+        } finally {
+            reader.close();
+        }
+    }
+
     private id(path: string): string {
-        return relative(this.root, path);
+        return relative(this.rootDirectory, path);
     }
 
     private shadowPath(path: string): string {

@@ -2,20 +2,20 @@ import Ajv, {ValidateFunction} from "ajv";
 import addFormats from "ajv-formats";
 import {join} from "path";
 import {Options} from "../util/options";
-import {Environment, Format, SourceEvent, ViewUpdate} from "./types";
+import {Environment, SourceEvent, SourceFormat, TargetFormat, ViewUpdate} from "./types";
 
 const ajv = new Ajv({allErrors: true});
 addFormats(ajv);
 
-export class JsonFormat implements Format {
+export class JsonFormat implements SourceFormat, TargetFormat {
     private readonly indention: number;
     private readonly validator: ValidateFunction | null;
     private readonly schemaPath: string | null;
 
     constructor(options: Options, context?: Environment) {
-        this.indention = options.optional('indention', {type: 'number'}, 2);
+        this.indention = options.optional('indention', {type: 'number'}) ?? 2;
 
-        const schemaPath = options.optional('schema', {type: 'string', nullable: true}, null);
+        const schemaPath = options.optional('schema', {type: 'string', nullable: true});
         if (schemaPath && context) {
             this.schemaPath = join(context.workingDirectory, schemaPath);
             try {

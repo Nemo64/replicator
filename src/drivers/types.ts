@@ -3,6 +3,24 @@
  */
 import {Options} from "../util/options";
 
+/**
+ * A key describing the driver type.
+ * Usually only needed for the {@see Initializer}.
+ */
+export type DriverType = "source" | "target" | "source_format" | "target_format";
+
+/**
+ * A method that creates a driver object.
+ * If you build a driver package, you want your main file to export initializers with sensible names.
+ *
+ * @see filesystem
+ * @see json
+ */
+export type Initializer = (type: DriverType, options: Options, context: Environment) => Promise<Source | Target | SourceFormat | TargetFormat>;
+
+/**
+ * Source driver
+ */
 export interface Source {
     /**
      * Watch the source for changes.
@@ -17,7 +35,7 @@ export interface Source {
 }
 
 /**
- * This is the interface for a target driver.
+ * Target or View driver
  */
 export interface Target {
     /**
@@ -36,17 +54,23 @@ export interface Target {
 }
 
 /**
- * This is a format for {@see Source} and {@see Target} drivers that store binary data.
+ * This is a format for {@see Source} drivers that store binary data.
  * This is usually json.
  */
-export interface Format {
+export interface SourceFormat {
     /**
      * Parses a stream of the given format.
      *
      * @return any structured format that is appropriate for further processing though the pattern formatter.
      */
     readSource(event: SourceEvent, reader: NodeJS.ReadableStream): Promise<any>;
+}
 
+/**
+ * This is a format for {@see Target} drivers that store binary data.
+ * This is usually json.
+ */
+export interface TargetFormat {
     /**
      * Updates a view blob.
      * If the view already existed, then a reader is passed.
@@ -61,21 +85,12 @@ export interface Format {
     updateView(update: ViewUpdate, writer: NodeJS.WritableStream, reader?: NodeJS.ReadableStream): Promise<number>;
 }
 
-export type SourceConstructor = new (options: Options, context: Environment) => Source;
-export type TargetConstructor = new (options: Options, context: Environment) => Target;
-export type FormatConstructor = new (options: Options, context: Environment) => Format;
-
 /**
  * These are context options that tell drivers a few things about the environment they are in.
  */
 export interface Environment {
     readonly workingDirectory: string;
     readonly lastConfigChange: Date;
-    readonly drivers: {
-        readonly source: Record<string, SourceConstructor>,
-        readonly target: Record<string, TargetConstructor>,
-        readonly format: Record<string, FormatConstructor>,
-    }
 }
 
 /**

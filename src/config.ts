@@ -1,4 +1,5 @@
 import Ajv from "ajv";
+import {loadDriver} from "./drivers/loader";
 import {Environment, Source, Target} from "./drivers/types";
 import {parseStructure} from "./formatter";
 import {PatternObject} from "./pattern";
@@ -33,6 +34,8 @@ export interface ViewMapping {
     readonly format: (data: FormatContext) => PatternObject,
 }
 
+export type Mappings = Map<string, Mapping>;
+
 const ajv = new Ajv({allErrors: true});
 const schema = require('../schemas/config.json');
 const schemaValidate = ajv.compile<Config>(schema);
@@ -50,51 +53,44 @@ export function validate(config: any, context: Environment): config is Config {
         throw new Error(`Undefined sources: ${missingSourceNames.map(v => JSON.stringify(v)).join(', ')}`);
     }
 
-    const missingSourceDrivers = Object.values(config.sources)
-        .map(source => source.type)
-        .filter(type => !context.drivers.source.hasOwnProperty(type))
-        .filter((driverType, index, array) => index === array.indexOf(driverType));
-    if (missingSourceDrivers.length > 0) {
-        throw new Error(`Unknown source drivers: ${missingSourceDrivers.map(v => JSON.stringify(v)).join(', ')}`);
-    }
-
-    const missingTargetDrivers = config.views
-        .map(view => view.target.type)
-        .filter(type => !context.drivers.target.hasOwnProperty(type))
-        .filter((driverType, index, array) => index === array.indexOf(driverType));
-    if (missingTargetDrivers.length > 0) {
-        throw new Error(`Unknown target drivers: ${missingTargetDrivers.map(v => JSON.stringify(v)).join(', ')}`);
-    }
-
     return true;
 }
 
-export function parse(config: any, context: Environment): Map<string, Mapping> {
-    const result = new Map;
+export async function parse(config: any, context: Environment): Promise<Mappings> {
     if (!validate(config, context)) {
-        return result;
+        return new Map;
     }
+
+    const result = [] as Promise<[string, Mapping]>[];
 
     for (const sourceName in config.sources) {
         const sourceOptions = new Options({name: sourceName, ...config.sources[sourceName]}, `source ${JSON.stringify(sourceName)}`);
-        const sourceType: string = sourceOptions.require('type', {type: 'string'});
-        const source = new context.drivers.source[sourceType](sourceOptions, context);
+        const sourceType = sourceOptions.require('type');
+        const sourcePromise = loadDriver(sourceType, 'source', sourceOptions, context);
 
-        const views = config.views.filter(view => view.source === sourceName).map(view => {
-            const targetOptions = new Options(view.target, `view target`);
-            const targetType: string = targetOptions.require('type', {type: 'string'});
-            const viewMapping: ViewMapping = {
-                target: new context.drivers.target[targetType](targetOptions, context),
-                matrix: parseStructure(view.matrix) as unknown as (data: FormatContext) => Record<string, PatternObject[]>,
-                format: parseStructure(view.format) as unknown as (data: FormatContext) => PatternObject,
+        const viewPromises = config.views
+            .filter(view => view.source === sourceName)
+            .map(async view => {
+                const targetOptions = new Options(view.target, `view target`);
+                const targetType = targetOptions.require('type');
+                const viewMapping: ViewMapping = {
+                    target: await loadDriver(targetType, 'target', targetOptions, context),
+                    matrix: parseStructure(view.matrix) as unknown as (data: FormatContext) => Record<string, PatternObject[]>,
+                    format: parseStructure(view.format) as unknown as (data: FormatContext) => PatternObject,
+                };
+                targetOptions.warnUnused();
+                return viewMapping;
+            });
+
+        result.push((async () => {
+            const mapping: Mapping = {
+                source: await sourcePromise,
+                views: await Promise.all(viewPromises),
             };
-            targetOptions.warnUnused();
-            return viewMapping;
-        });
-
-        sourceOptions.warnUnused();
-        result.set(sourceName, {source, views});
+            sourceOptions.warnUnused();
+            return [sourceName, mapping] as [string, Mapping];
+        })());
     }
 
-    return result;
+    return new Map(await Promise.all(result));
 }

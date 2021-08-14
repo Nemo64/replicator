@@ -1,7 +1,7 @@
 import {test} from "@jest/globals";
 import {Readable, Writable} from "stream";
 import {Options} from "../util/options";
-import {JsonFormat} from "./json_format";
+import JsonFormat from "./json_format";
 import {SourceEvent} from "./types";
 
 test(`parse.json`, async () => {

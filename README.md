@@ -70,7 +70,7 @@ Use jwt claims to handle access rights if needed, and you are done.
 {
     "sources": {
         "calendars": {
-            "type": "filesystem",
+            "type": "replicator:filesystem",
             "path": "source/*.json"
         }
     },
@@ -85,7 +85,7 @@ Use jwt claims to handle access rights if needed, and you are done.
             // the target file is always a json array at root level
             // multiple source files and view definitions can write into the same target
             "target": {
-                "type": "filesystem",
+                "type": "replicator:filesystem",
                 "path": "views/{matrix.user}/calendars.json"
             },
             // the format is what is actually in a view-item
@@ -104,7 +104,7 @@ Use jwt claims to handle access rights if needed, and you are done.
             // multiple entries can have the same file target
             // this means 1 calender can add multiple appointments to the target file 
             "target": {
-                "type": "filesystem",
+                "type": "replicator:filesystem",
                 "path": "views/{matrix.user}/{matrix.appointment.time|strftime('%Y-%m')}.json"
             },
             "format": {
@@ -219,6 +219,7 @@ Filters can be accessed and chained using `|filter_name`. Available filters are:
 - Every write requires a rewrite of an entire file (unless some trickery is used). Since we are talking about sequential
   reads and writes, I don't think that is an issue in most cases. Depending on how your split your base files, those
   could grow indefinitely though.
+- Working reliably with filesystems isn't too easy, see https://www.slideshare.net/nan1nan1/eat-my-data
 - Relying entirely on filesystem events could lead to issues on some systems. Mutagen has
   a [great documentation](https://mutagen.io/documentation/synchronization/watching)
   on their challenges and how they solved it.
@@ -226,8 +227,6 @@ Filters can be accessed and chained using `|filter_name`. Available filters are:
   the history of that file to figure out which views were affected. I don't know yet if that can be gracefully solved or
   requires file duplication for later comparison.
 - Only a single view is writable and contains the truth. You must only write in your base files.
-- There are solutions for atomic writes to files, but I don't know how reliable they are. Write operations are atomic up
-  to a point: https://serverfault.com/a/947789
 - Rebuilding large amount of views requires some considerations since it might not be feasible to keep all variations in
   ram until all files are scanned.
 - Reorganization of the base files will probably result in a change of your public apis, which is undesirable. The

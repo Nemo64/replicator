@@ -12,7 +12,7 @@
     ],
     "license": "MIT",
     "author": "Marco Pfeiffer <git@marco.zone>",
-    "main": "dist/replicator.js",
+    "main": "dist/index.js",
     "bin": "dist/cli.js",
     "files": [
         "dist",
@@ -24,7 +24,7 @@
     "scripts": {
         "build": "tsc --build --clean && tsc --build",
         "check": "tsc --noEmit",
-        "start": "ts-node-dev --respawn src/cli.ts",
+        "start": "ts-node-dev --respawn --transpile-only --watch 'examples/*/replicator.json' src/cli.ts",
         "test": "jest"
     },
     "dependencies": {

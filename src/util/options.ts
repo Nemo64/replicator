@@ -14,13 +14,18 @@ export class Options {
         this.context = context;
     }
 
-    require<U>(key: string, schema: JSONSchemaType<U>): U {
-        return this.optional(key, schema, () => {
+    // @ts-ignore
+    require<U = string>(key: string, schema: JSONSchemaType<U> = {type: 'string'}): U {
+        const value = this.optional(key, schema);
+        if (value === undefined) {
             throw new Error(`option ${JSON.stringify(key)} in ${this.context} is missing.`);
-        });
+        }
+
+        return value;
     }
 
-    optional<U>(key: string, schema: JSONSchemaType<U>, defaultValue: (() => U) | U): U {
+    // @ts-ignore
+    optional<U = string>(key: string, schema: JSONSchemaType<U> = {type: 'string'}): U | undefined {
         if (this.usedKeys.has(key)) {
             console.warn(`Option ${JSON.stringify(key)} in ${this.context} was already used. This is probably an implementation error.`);
         } else {
@@ -28,11 +33,7 @@ export class Options {
         }
 
         if (!this.options.hasOwnProperty(key)) {
-            if (defaultValue instanceof Function) {
-                return defaultValue.call(this);
-            } else {
-                return defaultValue;
-            }
+            return undefined;
         }
 
         const validate = ajv.compile(schema);

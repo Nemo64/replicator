@@ -6,8 +6,10 @@
     "properties": {
         "sources": {
             "type": "object",
-            "propertyNames": {"$ref": "#/definitions/key"},
-            "additionalProperties": {"$ref": "#/definitions/driver"}
+            "additionalProperties": false,
+            "patternProperties": {
+                "^[A-Za-z_][A-Za-z0-9_]{0,31}$": {"$ref": "#/definitions/driver"}
+            }
         },
         "views": {
             "type": "array",
@@ -15,7 +17,7 @@
                 "type": "object",
                 "required": ["source", "target", "format"],
                 "properties": {
-                    "source": {"$ref": "#/definitions/key"},
+                    "source": {"type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]{0,31}$"},
                     "matrix": {"type": "object"},
                     "target": {"$ref": "#/definitions/driver"},
                     "format": {"anyOf": [{"type": "string"}, {"type": "object"}]}
@@ -25,17 +27,11 @@
     },
 
     "definitions": {
-        "key": {
-            "type": "string",
-            "pattern": "^[A-Za-z_][A-Za-z0-9_]*$",
-            "minLength": 1,
-            "maxLength": 32
-        },
         "driver": {
             "type": "object",
             "required": ["type"],
             "properties": {
-                "type": {"type": "string", "examples": ["filesystem"]},
+                "driver": {"type": "string", "pattern": "^([a-zA-Z][^:]*):(.+)$", "examples": ["replicator:filesystem"]},
                 "path": {"type": "string"},
                 "schema": {"type": "string"},
                 "format": {"type": "string", "examples": ["json", "csv"]},

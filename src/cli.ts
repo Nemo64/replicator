@@ -1,13 +1,6 @@
 #!/usr/bin/env node
 
-import {stat} from "fs/promises";
-import {dirname, join} from 'path';
-import {cwd} from "process";
-import {FilesystemSource} from "./drivers/filesystem_source";
-import {FilesystemTarget} from "./drivers/filesystem_target";
-import {JsonFormat} from "./drivers/json_format";
-import {Environment} from "./drivers/types";
-import {processEvent, watchForEvents} from "./index";
+import {parseConfiguration, processEvent, watchForEvents} from "./index";
 
 execute(process.argv)
     .then(() => {
@@ -24,25 +17,15 @@ async function execute(argv: string[]) {
         throw `No config file given.\nUsage: node ${script} [configFile]`;
     }
 
-    const configPath = join(cwd(), configFile);
-    const environment: Environment = {
-        workingDirectory: dirname(configPath),
-        lastConfigChange: (await stat(configPath)).mtime,
-        drivers: {
-            source: {
-                "filesystem": FilesystemSource,
-            },
-            target: {
-                "filesystem": FilesystemTarget,
-            },
-            format: {
-                "json": JsonFormat,
-            },
-        },
-    };
-
-    const events = watchForEvents(require(configPath), environment);
+    const config = await parseConfiguration(configFile);
+    const events = watchForEvents(config);
     for await (const event of events) {
-        processEvent(event).then(console.log, console.error);
+        processEvent(config, event)
+            .then(update => console.log(`${update.type} of ${update.sourceName} ${green(update.sourceId)} updated in ${update.updateTime.toFixed(2).padStart(8)}ms: ${update.viewIds.map(green).join(', ')}`))
+            .catch(console.error);
     }
+}
+
+function green(text: string): string {
+    return `\x1b[32m${text}\x1b[0m`;
 }
