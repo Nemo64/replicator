@@ -1,13 +1,16 @@
 {
-    "name": "replicator",
+    "name": "@nemo64/replicator",
     "description": "Copies and merges source files into view files. Can replace databases in some cases.",
     "keywords": [
         "aggregate",
+        "copy",
         "daemon",
         "database",
         "event",
+        "index",
         "json",
         "nosql",
+        "storage",
         "view"
     ],
     "license": "MIT",
@@ -22,7 +25,7 @@
         "node": ">=14"
     },
     "scripts": {
-        "build": "rm -r dist && tsc --build",
+        "build": "rm -r dist && tsc --build && chmod +x dist/cli.js",
         "check": "tsc --noEmit",
         "start": "ts-node-dev --respawn --transpile-only --watch 'examples/*/replicator.json' src/cli.ts",
         "test": "jest"

@@ -33,7 +33,7 @@ export class FilesystemTarget implements Target {
      */
     static async create(options: Options, environment: Environment): Promise<FilesystemTarget> {
         const path = resolve(environment.workingDirectory, options.require('path'));
-        const format = options.optional('format') ?? `replicator:${extname(path).slice(1)}`;
+        const format = options.optional('format') ?? `@nemo64/replicator:${extname(path).slice(1)}`;
         const formatDriver = await loadDriver(format, 'target_format', options, environment);
         return new FilesystemTarget(path, formatDriver);
     }

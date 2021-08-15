@@ -41,7 +41,7 @@ This is the structure for this example:
 - [`views/`](views) Contains generated json views. Views are the aggregations from the `source/` files-
     - `[email]/[year]-[month].json` Lists of all appointments that are shared with the user in that month.
     - `[email]/calendars.json` A list of calendar id's and names that are shared with the user.
-- [`replicator-db.json`](replicator-db.json) Is the config file for the database that you need to pass to the daemon.
+- [`replicator.json`](replicator.json) Is the config file for the database that you need to pass to the daemon.
 
 ## Thoughts on the architecture
 

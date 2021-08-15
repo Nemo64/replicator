@@ -44,7 +44,7 @@ export class FilesystemSource implements Source {
     static async create(options: Options, environment: Environment): Promise<FilesystemSource> {
         const name = options.require('name');
         const path = join(environment.workingDirectory, options.require('path'));
-        const format = options.optional('format') ?? `replicator:${extname(path).slice(1)}`;
+        const format = options.optional('format') ?? `@nemo64/replicator:${extname(path).slice(1)}`;
         const formatDriver = await loadDriver(format, 'source_format', options, environment);
         const shadowDirectory = options.optional('shadow') ?? join(globParent(path), '.shadow');
         return new FilesystemSource(name, path, shadowDirectory, formatDriver, environment.lastConfigChange);
@@ -57,7 +57,7 @@ export class FilesystemSource implements Source {
 
         console.log('watch start', this.path);
         watcher.on("ready", () => {
-            console.log('watch ready', this.path, performance.now() - startTime);
+            console.log('watch ready', this.path, (performance.now() - startTime).toFixed(2) + 'ms');
         });
 
         const update = async (path: string, existingStats?: Stats) => {

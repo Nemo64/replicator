@@ -6,13 +6,13 @@ export async function loadDriver(name: string, type: 'target', options: Options,
 export async function loadDriver(name: string, type: 'source_format', options: Options, context: Environment): Promise<SourceFormat>;
 export async function loadDriver(name: string, type: 'target_format', options: Options, context: Environment): Promise<TargetFormat>;
 export async function loadDriver(name: string, type: DriverType, options: Options, context: Environment): Promise<any> {
-    const match = name.match(/^([a-zA-Z][^:]*):(.+)$/)
+    const match = name.match(/^([a-zA-Z@/][^:]*):(.+)$/)
     if (!match) {
-        throw new Error(`Drivers must not be a relative path. Use an absolute path or a package name instead`);
+        throw new Error(`Drivers must not be a relative path. Use an absolute path or a package name instead of ${JSON.stringify(name)}.`);
     }
 
     try {
-        const moduleName = match[1] === 'replicator' ? '../index' : match[1];
+        const moduleName = match[1] === '@nemo64/replicator' ? '../index' : match[1];
         const module = await import(moduleName);
         const initializer = module[match[2]] as Initializer;
         return initializer(type, options, context);

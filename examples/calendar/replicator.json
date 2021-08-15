@@ -2,7 +2,7 @@
     "$schema": "../../schemas/config.json",
     "sources": {
         "calendars": {
-            "type": "replicator:filesystem",
+            "type": "@nemo64/replicator:filesystem",
             "path": "source/*.json",
             "schema": "schemas/source-calendar.json"
         }
@@ -14,7 +14,7 @@
                 "user": "{source.shared_with|map(.user)|prepend(source.owner)}"
             },
             "target": {
-                "type": "replicator:filesystem",
+                "type": "@nemo64/replicator:filesystem",
                 "path": "views/{matrix.user}/calendars.json",
                 "schema": "schemas/view-calendars.json"
             },
@@ -30,7 +30,7 @@
                 "appointment": "{source.appointments}"
             },
             "target": {
-                "type": "replicator:filesystem",
+                "type": "@nemo64/replicator:filesystem",
                 "path": "views/{matrix.user}/{matrix.appointment.time|strftime('%Y-%m')}.json",
                 "schema": "schemas/view-appointments.json"
             },

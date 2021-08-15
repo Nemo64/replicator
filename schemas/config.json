@@ -8,7 +8,10 @@
             "type": "object",
             "additionalProperties": false,
             "patternProperties": {
-                "^[A-Za-z_][A-Za-z0-9_]{0,31}$": {"$ref": "#/definitions/driver"}
+                "^[A-Za-z_][A-Za-z0-9_]{0,31}$": {
+                    "description": "The source information.",
+                    "$ref": "#/definitions/driver"
+                }
             }
         },
         "views": {
@@ -17,10 +20,23 @@
                 "type": "object",
                 "required": ["source", "target", "format"],
                 "properties": {
-                    "source": {"type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]{0,31}$"},
-                    "matrix": {"type": "object"},
-                    "target": {"$ref": "#/definitions/driver"},
-                    "format": {"anyOf": [{"type": "string"}, {"type": "object"}]}
+                    "source": {
+                        "description": "The name of the source for this views infos.",
+                        "type": "string",
+                        "pattern": "^[A-Za-z_][A-Za-z0-9_]{0,29}$"
+                    },
+                    "matrix": {
+                        "description": "A matrix describing the permutations of the source to create views from.",
+                        "type": "object"
+                    },
+                    "target": {
+                        "description": "Where to store the generated views.",
+                        "$ref": "#/definitions/driver"
+                    },
+                    "format": {
+                        "description": "A format description for this view.",
+                        "anyOf": [{"type": "string"}, {"type": "object"}]
+                    }
                 }
             }
         }
@@ -31,11 +47,30 @@
             "type": "object",
             "required": ["type"],
             "properties": {
-                "driver": {"type": "string", "pattern": "^([a-zA-Z][^:]*):(.+)$", "examples": ["replicator:filesystem"]},
-                "path": {"type": "string"},
-                "schema": {"type": "string"},
-                "format": {"type": "string", "examples": ["json", "csv"]},
-                "compression": {"type": "string", "examples": ["none", "gzip", "brotli"]}
+                "type": {
+                    "description": "The name of the driver to use for this source/target.",
+                    "type": "string",
+                    "pattern": "^([a-zA-Z@/][^:]*):(.+)$",
+                    "examples": ["@nemo64/replicator:filesystem"]
+                },
+                "path": {
+                    "description": "A path description. Depends on the implementation of the driver.",
+                    "type": "string"
+                },
+                "schema": {
+                    "description": "A path to a schema definition. Depends on the implementation of the driver or format.",
+                    "type": "string"
+                },
+                "format": {
+                    "description": "The storage format of the data. Usually guessed from the \"path\". Depends on the implementation of the driver.",
+                    "type": "string",
+                    "examples": ["json", "csv"]
+                },
+                "compression": {
+                    "description": "Compression algorithm to use at rest. Usually guessed from the \"path\". Depends on the implementation of the driver.",
+                    "type": "string",
+                    "examples": ["none", "gzip", "brotli"]
+                }
             }
         }
     }

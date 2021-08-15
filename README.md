@@ -30,7 +30,7 @@ The package is not yet published to npm and the name is already used.
 ### cli usage
 
 ```shell
-npm install -g replicator # name not final
+npm install -g @nemo64/replicator
 replicator [path to config file]
 ```
 
@@ -41,11 +41,11 @@ to ensure the service is running.
 ### programmatic usage
 
 ```shell
-npm install replicator # name not final
+npm install @nemo64/replicator
 ```
 
 ```js
-import {parseConfiguration, processEvent, watchForEvents} from "replicator";
+import {parseConfiguration, processEvent, watchForEvents} from "@nemo64/replicator";
 
 const config = parseConfiguration("[path to config file]");
 for await (const event of watchForEvents(config)) {
@@ -101,11 +101,11 @@ Use jwt claims to handle access rights if needed, and you are done.
 ### database configuration
 
 ```json5
-// replicator-db.json
+// replicator.json
 {
     "sources": {
         "calendars": {
-            "type": "replicator:filesystem",
+            "type": "@nemo64/replicator:filesystem",
             "path": "source/*.json"
         }
     },
@@ -120,7 +120,7 @@ Use jwt claims to handle access rights if needed, and you are done.
             // the target file is always a json array at root level
             // multiple source files and view definitions can write into the same target
             "target": {
-                "type": "replicator:filesystem",
+                "type": "@nemo64/replicator:filesystem",
                 "path": "views/{matrix.user}/calendars.json"
             },
             // the format is what is actually in a view-item
@@ -139,7 +139,7 @@ Use jwt claims to handle access rights if needed, and you are done.
             // multiple entries can have the same file target
             // this means 1 calender can add multiple appointments to the target file 
             "target": {
-                "type": "replicator:filesystem",
+                "type": "@nemo64/replicator:filesystem",
                 "path": "views/{matrix.user}/{matrix.appointment.time|strftime('%Y-%m')}.json"
             },
             "format": {
