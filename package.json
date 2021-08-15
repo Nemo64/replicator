@@ -1,6 +1,7 @@
 {
     "name": "@nemo64/replicator",
     "description": "Copies and merges source files into view files. Can replace databases in some cases.",
+    "repository": "github:Nemo64/replicator",
     "keywords": [
         "aggregate",
         "copy",
