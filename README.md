@@ -25,8 +25,6 @@ and existing deliver systems (apache, nginx, CDN's etc) without reinventing the 
 
 ## Usage
 
-The package is not yet published to npm and the name is already used.
-
 ### cli usage
 
 ```shell
