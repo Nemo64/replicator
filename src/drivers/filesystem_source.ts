@@ -60,6 +60,15 @@ export class FilesystemSource implements Source {
             console.log('watch ready', this.path, (performance.now() - startTime).toFixed(2) + 'ms');
         });
 
+        const terminate = () => {
+            watcher.close()
+                .then(() => console.log('watch stopped', this.path))
+                .catch(e => console.error('watch stop failed', this.path, e))
+                .finally(() => queue.terminate());
+        };
+
+        process.once('SIGINT', terminate);
+
         const update = async (path: string, existingStats?: Stats) => {
             const sourceId = this.id(path);
             const sourceName = this.name;

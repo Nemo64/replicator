@@ -25,12 +25,13 @@ async function execute(argv: string[]) {
             })
             .catch(console.error);
     }
+
+    console.log('the event loop terminated.');
 }
 
 function green(text: string): string {
     return `\x1b[32m${text}\x1b[0m`;
 }
-
 
 function dim(text: string): string {
     return `\x1b[2m${text}\x1b[0m`;
