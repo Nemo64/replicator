@@ -1,4 +1,4 @@
-import {expect, test} from "@jest/globals";
+import {expect, test, jest} from "@jest/globals";
 import {Readable, Writable} from "stream";
 import {Options} from "../util/options";
 import {JsonFormat} from "./json_format";
