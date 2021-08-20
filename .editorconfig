@@ -22,8 +22,8 @@ ij_any_keep_blank_lines_in_code = 1
 # normal yaml files should be 2 spaces
 [{*.yml,*.yaml}]
 indent_size = 2
-ij_yaml_sequence_on_new_line = true
-ij_yaml_block_mapping_on_new_line = true
+ij_yaml_sequence_on_new_line = false
+ij_yaml_block_mapping_on_new_line = false
 
 # in case someone does not have Makefile support in the ide
 [Makefile]
