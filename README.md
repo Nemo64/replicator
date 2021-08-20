@@ -36,6 +36,17 @@ If you plan to use this, you should
 [create a unit file](https://nodesource.com/blog/running-your-node-js-app-with-systemd-part-1/#creatingasystemdservicefile)
 to ensure the service is running.
 
+### docker usage
+
+```shell
+docker run --rm -v $PWD:/data nemo64/replicator /data/[path to config file]
+```
+
+See what tags are available on [hub.docker.com](https://hub.docker.com/r/nemo64/replicator/tags).
+
+The [Dockerfile](./Dockerfile) for this version is in this repository and build directly from source.
+It is therefore also very useful for testing.
+
 ### programmatic usage
 
 ```shell
