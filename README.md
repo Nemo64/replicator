@@ -1,9 +1,9 @@
-![GitHub Workflow Status](https://img.shields.io/github/workflow/status/nemo64/replicator/Test)
+[![GitHub Workflow Status](https://img.shields.io/github/workflow/status/nemo64/replicator/Test)](https://github.com/Nemo64/replicator/actions/workflows/test.yml)
 ![npms.io (quality)](https://img.shields.io/npms-io/quality-score/@nemo64/replicator)
-![npm](https://img.shields.io/npm/v/@nemo64/replicator)
-![npm](https://img.shields.io/npm/dm/@nemo64/replicator)
-![Docker Image Version](https://img.shields.io/docker/v/nemo64/replicator?label=docker&sort=semver)
-![Docker Pulls](https://img.shields.io/docker/pulls/nemo64/replicator)
+[![npm](https://img.shields.io/npm/v/@nemo64/replicator)](https://www.npmjs.com/package/@nemo64/replicator)
+[![npm](https://img.shields.io/npm/dm/@nemo64/replicator)](https://www.npmjs.com/package/@nemo64/replicator)
+[![Docker Image Version](https://img.shields.io/docker/v/nemo64/replicator?label=docker&sort=semver)](https://hub.docker.com/repository/docker/nemo64/replicator)
+[![Docker Pulls](https://img.shields.io/docker/pulls/nemo64/replicator)](https://hub.docker.com/repository/docker/nemo64/replicator)
 
 # Replicator - The noDB storage solution
 
