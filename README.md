@@ -30,6 +30,20 @@ and not a completely new way how to interact with data, like most databases.
 That way, this project can profit off of decades of persistence experience (raid, SAM, nfs, rsync, mounts etc)
 and existing deliver systems (apache, nginx, CDN's etc) without reinventing the wheel.
 
+## Current implementation
+
+- ✔ filesystem as source and target
+- ✔ json format support
+- ✔ plugins for additional sources, targets and formats
+- ✔ data re-formatting
+- ✔ matrix data duplication
+- ~ restart recovery (deletions aren't detected yet)
+- ~ rebuild on config change
+- ⨯ plugin for aws s3 support with cdk stack
+- ⨯ plugin for exif/id3 as source format
+- ⨯ plugin for csv source and target format
+- ⨯ plugin for sql source and target format
+
 ## Usage
 
 ### cli usage
