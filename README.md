@@ -32,11 +32,11 @@ and existing deliver systems (apache, nginx, CDN's etc) without reinventing the 
 
 ## Current implementation
 
-- ✔ filesystem as source and target
-- ✔ json format support
-- ✔ plugins for additional sources, targets and formats
-- ✔ data re-formatting
-- ✔ matrix data duplication
+- ✓ filesystem as source and target
+- ✓ json format support
+- ✓ plugins for additional sources, targets and formats
+- ✓ data re-formatting
+- ✓ matrix data duplication
 - ~ restart recovery (deletions aren't detected yet)
 - ~ rebuild on config change
 - ⨯ plugin for aws s3 support with cdk stack
